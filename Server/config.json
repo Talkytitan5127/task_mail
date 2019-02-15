@@ -1,0 +1,6 @@
+{
+    "host": "127.0.0.1",
+    "port": "2233",
+    "conn_type": "tcp",
+    "rooms": ["loby", "kitchen", "room#1"]
+}
