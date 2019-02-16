@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"encoding/gob"
+	"bufio"
 	"flag"
 	"encoding/json"
 	"github.com/task_mail/Server/Room"
@@ -47,6 +47,8 @@ func main() {
 			fmt.Println("Error accepting: ", err.Error())
 			os.Exit(1)
 		}
+		defer conn.Close()
+
 		fmt.Println(conn.RemoteAddr())
 		go handleRequest(conn)
 	}
@@ -54,11 +56,9 @@ func main() {
 }
 
 func handleRequest(conn net.Conn) {
-	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	text, err := reader.ReadString('\n')
 	
-	var msg string
-	decoder := gob.NewDecoder(conn)
-	err := decoder.Decode(&msg)
 	if err != nil {
 		if err == io.EOF {
 			fmt.Println("User disonnected")
@@ -67,7 +67,7 @@ func handleRequest(conn net.Conn) {
 		}
 		return
 	}
-	fmt.Println("received ", msg)
+	fmt.Println("received ", text)
 	conn.Write([]byte("Message received."))
 }
 
