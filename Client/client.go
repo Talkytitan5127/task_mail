@@ -79,10 +79,10 @@ func ReadHandler(conn net.Conn) {
 		if err != nil {
 			if err == io.EOF {
 				fmt.Println("Server shut down")
-				return
+				conn.Close()
+				os.Exit(0)
 			} else {
 				fmt.Println("Error reader: ", err)
-				return
 			}
 		}
 		fmt.Print("response text: ", text)
