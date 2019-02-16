@@ -35,9 +35,9 @@ func main() {
 	defer conn.Close()
 	
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
-	WriteHandler(conn)
+	
 	go ReadHandler(conn)
-
+	WriteHandler(conn)
 }
 
 func ParseConfig(path string, conf *Config) error {
@@ -59,14 +59,15 @@ func ParseConfig(path string, conf *Config) error {
 func WriteHandler(conn net.Conn) {
 	for {
 		input := bufio.NewReader(os.Stdin)
-		write := bufio.NewWriterSize(conn, 255)
+		writer := bufio.NewWriterSize(conn, 255)
 
 		text, _ := input.ReadString('\n')
-		_, err := write.WriteString(text)
+		_, err := writer.WriteString(text)
 		if err != nil {
 			fmt.Println("smth wrong with writer: ", err)
 			break
 		}
+		writer.Flush()
 	}
 	//command, data = Parse(text)
 }
