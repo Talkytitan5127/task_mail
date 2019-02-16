@@ -8,6 +8,7 @@ import (
 	"flag"
 	"encoding/json"
 	"github.com/task_mail/Server/Room"
+	"io"
 )
 
 type Config struct {
@@ -59,7 +60,11 @@ func handleRequest(conn net.Conn) {
 	decoder := gob.NewDecoder(conn)
 	err := decoder.Decode(&msg)
 	if err != nil {
-		fmt.Println("Error readnig: ", err.Error())
+		if err == io.EOF {
+			fmt.Println("User disonnected")
+		} else {
+			fmt.Println("Error readnig: ", err.Error())
+		}
 		return
 	}
 	fmt.Println("received ", msg)
