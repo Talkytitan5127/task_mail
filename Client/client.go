@@ -7,7 +7,7 @@ import (
 	"os"
 	"flag"
 	"bufio"
-	"strings"
+	"io"
 )
 
 type Config struct {
@@ -33,8 +33,10 @@ func main() {
 		os.Exit(1)
 	}
 	defer conn.Close()
-
-	InputHandler(conn)
+	
+	fmt.Println("Connected to server: ", conn.RemoteAddr())
+	WriteHandler(conn)
+	go ReadHandler(conn)
 
 }
 
@@ -54,14 +56,36 @@ func ParseConfig(path string, conf *Config) error {
 	return nil
 }
 
-func InputHandler(conn net.Conn) {
-	fmt.Println("Connected to server: ", conn.RemoteAddr())
+func WriteHandler(conn net.Conn) {
+	for {
+		input := bufio.NewReader(os.Stdin)
+		write := bufio.NewWriterSize(conn, 255)
 
-	reader := bufio.NewReader(os.Stdin)
-	text, _ := reader.ReadString('\n')
-	text = strings.TrimSuffix(text, "\n")
-	fmt.Println(text)
+		text, _ := input.ReadString('\n')
+		_, err := write.WriteString(text)
+		if err != nil {
+			fmt.Println("smth wrong with writer: ", err)
+			break
+		}
+	}
 	//command, data = Parse(text)
+}
+
+func ReadHandler(conn net.Conn) {
+	for {
+		reader := bufio.NewReader(conn)
+		text, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println("Server shut down")
+				return
+			} else {
+				fmt.Println("Error reader: ", err)
+				return
+			}
+		}
+		fmt.Print("response text: ", text)
+	}
 }
 
 func Parse(text string) (string, string) {
