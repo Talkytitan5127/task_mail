@@ -56,19 +56,21 @@ func main() {
 }
 
 func handleRequest(conn net.Conn) {
-	reader := bufio.NewReader(conn)
-	text, err := reader.ReadString('\n')
-	
-	if err != nil {
-		if err == io.EOF {
-			fmt.Println("User disonnected")
-		} else {
-			fmt.Println("Error readnig: ", err.Error())
+	for {
+		reader := bufio.NewReader(conn)
+		text, err := reader.ReadString('\n')
+		
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println("User disonnected")
+			} else {
+				fmt.Println("Error readnig: ", err.Error())
+			}
+			return
 		}
-		return
+		fmt.Print("received ", text)
+		conn.Write([]byte("Message received."))
 	}
-	fmt.Println("received ", text)
-	conn.Write([]byte("Message received."))
 }
 
 func ParseConfig(path string, conf *Config) error {
