@@ -7,11 +7,13 @@ import (
 	"encoding/gob"
 	"flag"
 	"encoding/json"
+	"github.com/task_mail/Server/Room"
+	"io"
 )
 
 type Config struct {
 	Host, Port, Conn_type string
-	Rooms []string
+	Room_name []string
 }
 
 func main() {
@@ -23,6 +25,12 @@ func main() {
 	if err != nil {
 		fmt.Println("Error config: ", err.Error())
 		os.Exit(1)
+	}
+
+	var rooms = make(map[string]*room.Room)
+	for _, name := range conf.Room_name {
+		room := room.Create_room(name)
+		rooms[name] = room
 	}
 
 	l, err := net.Listen(conf.Conn_type, conf.Host+":"+conf.Port)
@@ -52,7 +60,11 @@ func handleRequest(conn net.Conn) {
 	decoder := gob.NewDecoder(conn)
 	err := decoder.Decode(&msg)
 	if err != nil {
-		fmt.Println("Error readnig: ", err.Error())
+		if err == io.EOF {
+			fmt.Println("User disonnected")
+		} else {
+			fmt.Println("Error readnig: ", err.Error())
+		}
 		return
 	}
 	fmt.Println("received ", msg)
