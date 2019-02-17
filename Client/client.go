@@ -12,16 +12,18 @@ import (
 
 type Config struct {
 	Host, Conn_type string
-	Rooms []string
-	Username string
+	Rooms map[string]string
 }
+
+var (
+	conf Config
+)
 
 func main() {
 	var path_config = flag.String("config", "./client_conf.json", "path to config file")
 	flag.Parse()
 
-	var conf Config
-	err := ParseConfig(*path_config, &conf)
+	err := ParseConfigFile(*path_config, &conf)
 	if err != nil {
 		fmt.Println("Error config: ", err.Error())
 		os.Exit(1)
@@ -35,12 +37,17 @@ func main() {
 	defer conn.Close()
 	
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
-	
+	SendConfig(conn)
 	go ReadHandler(conn)
 	WriteHandler(conn)
 }
 
-func ParseConfig(path string, conf *Config) error {
+func SendConfig(conn net.Conn) {
+	writer := json.NewEncoder(conn)
+	writer.Encode(conf.Rooms)
+}
+
+func ParseConfigFile(path string, conf *Config) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
