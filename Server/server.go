@@ -170,9 +170,11 @@ func (user *User) Get_History(name_room string) string {
 	room := Rooms[name_room]
 	messages := room.Get_messages()
 	writer := bufio.NewWriter(user.conn)
+	writer.WriteString("----"+name_room+"----\n")
 	for _, message := range(messages) {
 		writer.WriteString(message + "\n")
 	}
+	writer.WriteString(strings.Repeat("-", (8+len(name_room)))+"\n")
 	writer.Flush()
 	return "History was sent"
 }
