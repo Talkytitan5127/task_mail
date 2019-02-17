@@ -92,7 +92,7 @@ func ReadHandler(conn net.Conn) {
 				fmt.Println("Error reader: ", err)
 			}
 		}
-		fmt.Print("response text: ", text)
+		fmt.Print("Response:\n", text)
 	}
 }
 
