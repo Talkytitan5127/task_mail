@@ -109,7 +109,7 @@ func SetUser(conn net.Conn) *User {
 func ReadMessage(conn net.Conn) (string, error) {
 	reader := bufio.NewReader(conn)
 	text, err := reader.ReadString('\n')
-	
+	text = strings.TrimSuffix(text, "\n")
 	if err != nil {
 		if err == io.EOF {
 			fmt.Println("User disonnected")
@@ -219,6 +219,8 @@ func (user *User) Subscribe(name_room string) string {
 		WriteMessage(user.conn, "Type message to send")
 		return "subscribe failed"
 	}
-	WriteMessage(user.conn, "Subscribe successful. Your nickname is " + username)
+	WriteMessage(user.conn, "Subscribe successful")
+	user.rooms[name_room] = username
+
 	return "user add successful"
 }
