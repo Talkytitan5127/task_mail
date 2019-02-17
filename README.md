@@ -14,3 +14,28 @@
 1) Исходные код сервера и клиента реализованные на Go и выложенный на github.com.
 2) Минимальный набор тестов.
 
+
+------------------------------------------------
+
+Собрать проект:
+```console
+chmod 700 build.sh
+./build.sh
+```
+
+Запустить сервер:
+```console
+cd Server/
+$GOPATH/bin/Server
+```
+
+Запустить клиент:
+```console
+cd Client/
+$GOPATH/bin/Client
+```
+
+Доступные команды пользователю:
+    subscribe room
+    publish room
+    get_history room
