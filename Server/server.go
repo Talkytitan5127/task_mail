@@ -9,12 +9,22 @@ import (
 	"encoding/json"
 	"github.com/task_mail/Server/Room"
 	"io"
+	"strings"
 )
 
 type Config struct {
 	Host, Port, Conn_type string
 	Room_name []string
 }
+
+type User struct {
+	conn net.Conn
+	rooms map[string]string
+}
+
+var (
+	rooms map[string]*room.Room
+)
 
 func main() {
 	var path_config = flag.String("config", "./config.json", "path to config file")
@@ -27,7 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	var rooms = make(map[string]*room.Room)
+	rooms = make(map[string]*room.Room)
 	for _, name := range conf.Room_name {
 		room := room.Create_room(name)
 		rooms[name] = room
@@ -50,12 +60,25 @@ func main() {
 		defer conn.Close()
 
 		fmt.Println(conn.RemoteAddr())
-		go handleRequest(conn)
+
+		user := SetUser(conn)
+		fmt.Printf("%+v\n", user)
+		go handleRequest(user)
 	}
 
 }
 
-func handleRequest(conn net.Conn) {
+func SetUser(conn net.Conn) *User {
+	user := new(User)
+	user.conn = conn
+
+	reader := json.NewDecoder(conn)
+	_ = reader.Decode(user.rooms)
+	return user
+}
+
+func handleRequest(user *User) {
+	conn := user.conn
 	for {
 		reader := bufio.NewReader(conn)
 		text, err := reader.ReadString('\n')
@@ -68,8 +91,13 @@ func handleRequest(conn net.Conn) {
 			}
 			return
 		}
-		fmt.Print("received ", text)
-		conn.Write([]byte("Message received."))
+		writer := bufio.NewWriter(conn)
+
+		fmt.Println(text)
+		text = strings.TrimSuffix(text, "\n")
+		status := Process(text)
+		writer.WriteString(status + "\n")
+		writer.Flush()
 	}
 }
 
@@ -87,4 +115,35 @@ func ParseConfig(path string, conf *Config) error {
 	}
 
 	return nil
+}
+
+func ParseText(text string) (string, string) {
+	data := strings.SplitN(text, " ", 2)
+	fmt.Printf("%v\n", data)
+	return data[0], data[1]
+}
+
+func Process(text string) string {
+	fmt.Println("Process method")
+	command, data := ParseText(text)
+	fmt.Println(command,"=>", data)
+	switch command {
+	case "publish":
+		//Publish(data)
+		return "publish"
+	case "subscribe":
+		//subscribe(data)
+		return "subscribe"
+	default:
+		return "unknown command"
+	}
+}
+
+func Publish(text string) {
+	//room_name, data := ParseText(text)
+
+}
+
+func subscribe(text string) {
+	//room_name, data := ParseText(text)
 }
