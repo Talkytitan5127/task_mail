@@ -1,5 +1,9 @@
 package room
 
+import (
+	"errors"
+)
+
 type Room struct {
 	Users map[string]bool
 	Messages []string
@@ -38,7 +42,7 @@ func (r *Room) Add_message(mes string) {
 func (r *Room) Add_user(name string) error {
 	_, ok := r.Users[name]
 	if ok {
-		panic("user already exist's")
+		return errors.New("user already exist's")
 	} else {
 		r.Users[name] = true
 		return nil
