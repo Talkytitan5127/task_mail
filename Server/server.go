@@ -78,9 +78,23 @@ func handleRequest(user *User) {
 
 		fmt.Println(text)
 		text = strings.TrimSuffix(text, "\n")
+		err = CheckInput(text)
+		if err != nil {
+			fmt.Println(err)
+			WriteMessage(conn, "wrong input command")
+			continue
+		}
 		status := Process(user, text)
 		fmt.Println(status)
 	}
+}
+
+func CheckInput(text string) error {
+	data := strings.Split(text, " ")
+	if text == "" || text == "\n" || len(data) < 2 {
+		return errors.New("wrong input command")
+	}
+	return nil
 }
 
 func SetUser(conn net.Conn) *User {
