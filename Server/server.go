@@ -14,12 +14,12 @@ import (
 
 type Config struct {
 	Host, Port, Conn_type string
-	Room_name map[string]string
+	Room_name []string
 }
 
 type User struct {
 	conn net.Conn
-	rooms []map[string]string
+	rooms map[string]string
 }
 
 var (
@@ -60,12 +60,25 @@ func main() {
 		defer conn.Close()
 
 		fmt.Println(conn.RemoteAddr())
-		go handleRequest(conn)
+
+		user := SetUser(conn)
+		fmt.Printf("%+v\n", user)
+		go handleRequest(user)
 	}
 
 }
 
-func handleRequest(conn net.Conn) {
+func SetUser(conn net.Conn) *User {
+	user := new(User)
+	user.conn = conn
+
+	reader := json.NewDecoder(conn)
+	_ = reader.Decode(user.rooms)
+	return user
+}
+
+func handleRequest(user *User) {
+	conn := user.conn
 	for {
 		reader := bufio.NewReader(conn)
 		text, err := reader.ReadString('\n')
