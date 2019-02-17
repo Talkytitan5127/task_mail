@@ -64,11 +64,14 @@ func ParseConfigFile(path string, conf *Config) error {
 }
 
 func WriteHandler(conn net.Conn) {
+	input := bufio.NewReaderSize(os.Stdin, 255)
+	writer := bufio.NewWriterSize(conn, 255)
 	for {
-		input := bufio.NewReader(os.Stdin)
-		writer := bufio.NewWriterSize(conn, 255)
-
 		text, _ := input.ReadString('\n')
+		if len(text) >= 255 {
+			fmt.Println("Wrong len of message\n Type new message")
+			continue
+		}
 		_, err := writer.WriteString(text)
 		if err != nil {
 			fmt.Println("smth wrong with writer: ", err)
@@ -76,12 +79,11 @@ func WriteHandler(conn net.Conn) {
 		}
 		writer.Flush()
 	}
-	//command, data = Parse(text)
 }
 
 func ReadHandler(conn net.Conn) {
+	reader := bufio.NewReader(conn)
 	for {
-		reader := bufio.NewReader(conn)
 		text, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
@@ -94,9 +96,4 @@ func ReadHandler(conn net.Conn) {
 		}
 		fmt.Print("Response:\n", text)
 	}
-}
-
-func Parse(text string) (string, string) {
-	fmt.Println(text)
-	return "", ""
 }
