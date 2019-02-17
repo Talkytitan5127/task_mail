@@ -20,6 +20,8 @@ type Config struct {
 
 type User struct {
 	conn net.Conn
+	reader *bufio.Reader
+	writer *bufio.Writer
 	rooms map[string]string
 }
 
@@ -44,14 +46,15 @@ func main() {
 		Rooms[name] = room
 	}
 	
-	l, err := net.Listen(conf.Conn_type, conf.Host+":"+conf.Port)
+	host := fmt.Sprintf("%s:%s", conf.Host, conf.Port)
+	l, err := net.Listen(conf.Conn_type, host)
 	if err != nil {
 		fmt.Println("Error listening: ", err.Error())
 		os.Exit(1)
 	}
 	defer l.Close()
 
-	fmt.Printf("Listening on %s:%s\n", conf.Host, conf.Port)
+	fmt.Printf("Listening on %s\n", host)
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -60,7 +63,7 @@ func main() {
 		}
 		defer conn.Close()
 
-		fmt.Println(conn.RemoteAddr())
+		fmt.Println("User connect from:", conn.RemoteAddr())
 
 		user := SetUser(conn)
 		go handleRequest(user)
@@ -69,9 +72,8 @@ func main() {
 }
 
 func handleRequest(user *User) {
-	conn := user.conn
 	for {
-		text, err := ReadMessage(conn)
+		text, err := user.ReadMessage()
 		if err != nil {
 			return
 		}
@@ -81,10 +83,10 @@ func handleRequest(user *User) {
 		err = CheckInput(text)
 		if err != nil {
 			fmt.Println(err)
-			WriteMessage(conn, "wrong input command")
+			user.WriteMessage("wrong input command")
 			continue
 		}
-		status := Process(user, text)
+		status := user.Process(text)
 		fmt.Println(status)
 	}
 }
@@ -100,19 +102,20 @@ func CheckInput(text string) error {
 func SetUser(conn net.Conn) *User {
 	user := new(User)
 	user.conn = conn
+	user.reader = bufio.NewReader(conn)
+	user.writer = bufio.NewWriter(conn)
 
 	reader := json.NewDecoder(conn)
 	reader.Decode(&user.rooms)
 	return user
 }
 
-func ReadMessage(conn net.Conn) (string, error) {
-	reader := bufio.NewReader(conn)
-	text, err := reader.ReadString('\n')
+func (user *User) ReadMessage() (string, error) {
+	text, err := user.reader.ReadString('\n')
 	text = strings.TrimSuffix(text, "\n")
 	if err != nil {
 		if err == io.EOF {
-			fmt.Println("User disonnected")
+			fmt.Printf("User %s disonnected\n", user.conn.RemoteAddr())
 		} else {
 			fmt.Println("Error readnig: ", err.Error())
 		}
@@ -121,10 +124,9 @@ func ReadMessage(conn net.Conn) (string, error) {
 	return text, nil
 }
 
-func WriteMessage(conn net.Conn, message string) {
-	writer := bufio.NewWriter(conn)
-	writer.WriteString(message + "\n")
-	writer.Flush()
+func (user *User) WriteMessage(message string) {
+	user.writer.WriteString(message + "\n")
+	user.writer.Flush()
 }
 
 
@@ -141,11 +143,10 @@ func ParseConfig(path string, conf *Config) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func Process(user *User, text string) string {
+func (user *User) Process(text string) string {
 	fmt.Println("Process method")
 	data := strings.Split(text, " ")
 	command, name_room := data[0], data[1]
@@ -169,13 +170,12 @@ func Process(user *User, text string) string {
 func (user *User) Get_History(name_room string) string {
 	room := Rooms[name_room]
 	messages := room.Get_messages()
-	writer := bufio.NewWriter(user.conn)
-	writer.WriteString("----"+name_room+"----\n")
+	user.writer.WriteString(fmt.Sprintf("----%s----\n", name_room))
 	for _, message := range(messages) {
-		writer.WriteString(message + "\n")
+		user.writer.WriteString(message + "\n")
 	}
-	writer.WriteString(strings.Repeat("-", (8+len(name_room)))+"\n")
-	writer.Flush()
+	user.writer.WriteString(strings.Repeat("-", (8+len(name_room)))+"\n")
+	user.writer.Flush()
 	return "History was sent"
 }
 
@@ -191,13 +191,13 @@ func (user *User) Publish(name_room string) string {
 		return "User doesn't subscribe to this room"
 	}
 
-	WriteMessage(user.conn, "Type message to send")
+	user.WriteMessage("Type message to send")
 	fmt.Println("Wait message from user")
-	text, err := ReadMessage(user.conn)
+	text, err := user.ReadMessage()
 	if err != nil {
 		return "Message error"
 	}
-
+	text = fmt.Sprintf("%s: %s", username, text)
 	obj_room.Add_message(text)
 	return "Send message is successful"
 	 
@@ -209,20 +209,20 @@ func (user *User) Subscribe(name_room string) string {
 		return "Room doesn't exists"
 	}
 
-	WriteMessage(user.conn, "Enter you nickname")
+	user.WriteMessage("Enter you nickname")
 	fmt.Println("Wait nickname from user")
-	username, err := ReadMessage(user.conn)
+	username, err := user.ReadMessage()
 	if err != nil {
 		return "Message error"
 	}
 
 	err = obj_room.Add_user(username)
 	if err != nil {
-		WriteMessage(user.conn, "Type message to send")
+		user.WriteMessage("Type message to send")
 		return "subscribe failed"
 	}
-	WriteMessage(user.conn, "Subscribe successful")
+	user.WriteMessage("Subscribe successful")
 	user.rooms[name_room] = username
-
+	user.Get_History(name_room)
 	return "user add successful"
 }
