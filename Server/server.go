@@ -188,5 +188,23 @@ func (user *User) Publish(name_room string) string {
 }
 
 func (user *User) Subscribe(name_room string) string {
-	return "method doesn't realize"
+	obj_room, ok := Rooms[name_room]
+	if ok == false {
+		return "Room doesn't exists"
+	}
+
+	WriteMessage(user.conn, "Enter you nickname")
+	fmt.Println("Wait nickname from user")
+	username, err := ReadMessage(user.conn)
+	if err != nil {
+		return "Message error"
+	}
+
+	err = obj_room.Add_user(username)
+	if err != nil {
+		WriteMessage(user.conn, "Type message to send")
+		return "subscribe failed"
+	}
+	WriteMessage(user.conn, "Subscribe successful. Your nickname is " + username)
+	return "user add successful"
 }
