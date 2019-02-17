@@ -48,3 +48,11 @@ func (r *Room) Add_user(name string) error {
 		return nil
 	}
 }
+
+func (r *Room) Get_users() []string {
+	var users []string
+	for name, _ := range r.Users {
+		users = append(users, name)
+	}
+	return users
+}

@@ -36,7 +36,8 @@ func main() {
 		os.Exit(1)
 	}
 	defer conn.Close()
-	
+	//not working
+	//defer SaveConfig(*path_config, &conf)
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
 	SendConfig(conn)
 
@@ -47,6 +48,22 @@ func main() {
 func SendConfig(conn net.Conn) {
 	writer := json.NewEncoder(conn)
 	writer.Encode(conf.Rooms)
+}
+
+func SaveConfig(path string, conf *Config) {
+	fmt.Println("SaveConfig")
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(&conf)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 }
 
 func ParseConfigFile(path string, conf *Config) error {

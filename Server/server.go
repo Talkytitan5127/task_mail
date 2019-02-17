@@ -47,19 +47,20 @@ func main() {
 	}
 	
 	host := fmt.Sprintf("%s:%s", conf.Host, conf.Port)
-	l, err := net.Listen(conf.Conn_type, host)
+	listen, err := net.Listen(conf.Conn_type, host)
 	if err != nil {
 		fmt.Println("Error listening: ", err.Error())
 		os.Exit(1)
 	}
-	defer l.Close()
+	defer listen.Close()
+	defer SaveConfig(*path_config, conf)
 
 	fmt.Printf("Listening on %s\n", host)
 	for {
-		conn, err := l.Accept()
+		conn, err := listen.Accept()
 		if err != nil {
 			fmt.Println("Error accepting: ", err.Error())
-			os.Exit(1)
+			continue
 		}
 		defer conn.Close()
 
@@ -129,7 +130,27 @@ func (user *User) WriteMessage(message string) {
 	user.writer.Flush()
 }
 
+//doesn't work
+func SaveConfig(path string, conf Config) {
+	fmt.Println("SaveConfig")
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer file.Close()
 
+	new_room_name := make(map[string][]string)
+	for r_name, obj_room := range Rooms {
+	new_room_name[r_name] = obj_room.Get_users()
+	}
+
+	conf.Room_name = new_room_name
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(&conf)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
 
 func ParseConfig(path string, conf *Config) error {
 	file, err := os.Open(path)
@@ -158,9 +179,6 @@ func (user *User) Process(text string) string {
 		return status
 	case "subscribe":
 		status = user.Subscribe(name_room)
-		return status
-	case "get_history":
-		status = user.Get_History(name_room)
 		return status
 	default:
 		return "unknown command"
@@ -224,5 +242,9 @@ func (user *User) Subscribe(name_room string) string {
 	user.WriteMessage("Subscribe successful")
 	user.rooms[name_room] = username
 	user.Get_History(name_room)
+
+	user.WriteMessage("JSON")
+	data := map[string]string{"room":name_room, "nickname":username}
+	_ = json.NewEncoder(user.conn).Encode(data)
 	return "user add successful"
 }
