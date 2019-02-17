@@ -222,6 +222,6 @@ func (user *User) Subscribe(name_room string) string {
 	}
 	user.WriteMessage("Subscribe successful")
 	user.rooms[name_room] = username
-
+	user.Get_History(name_room)
 	return "user add successful"
 }
