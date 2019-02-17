@@ -8,6 +8,7 @@ import (
 	"flag"
 	"bufio"
 	"io"
+	"strings"
 )
 
 type Config struct {
@@ -38,6 +39,7 @@ func main() {
 	
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
 	SendConfig(conn)
+
 	go ReadHandler(conn)
 	WriteHandler(conn)
 }
@@ -85,6 +87,7 @@ func ReadHandler(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
 		text, err := reader.ReadString('\n')
+		text  = strings.TrimSuffix(text, "\n")
 		if err != nil {
 			if err == io.EOF {
 				fmt.Println("Server shut down")
@@ -94,6 +97,28 @@ func ReadHandler(conn net.Conn) {
 				fmt.Println("Error reader: ", err)
 			}
 		}
-		fmt.Print("Response:\n", text)
+		switch text {
+		case "JSON":
+			err = ReadJson(conn)
+			if err != nil {
+				fmt.Println(err)
+			}
+		default:
+			fmt.Print("\nResponse:\n", text)
+		}
+		
 	}
+}
+
+func ReadJson(conn net.Conn) error {
+	data := make(map[string]string)
+	decoder := json.NewDecoder(conn)
+	err := decoder.Decode(&data)
+	if err != nil {
+		return err
+	}
+	room_name := data["room"]
+	nickname := data["nickname"]
+	conf.Rooms[room_name] = nickname
+	return nil
 }
