@@ -104,7 +104,7 @@ func ReadHandler(conn net.Conn) {
 				fmt.Println(err)
 			}
 		default:
-			fmt.Print("\nResponse:\n", text)
+			fmt.Println(text)
 		}
 		
 	}
