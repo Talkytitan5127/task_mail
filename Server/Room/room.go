@@ -5,10 +5,13 @@ type Room struct {
 	Messages []string
 }
 
-func Create_room(name string) *Room {
+func Create_room(users []string) *Room {
 	cap := 128
 	room := new(Room)
 	room.Users = make(map[string]bool)
+	for _, name := range(users) {
+		room.Users[name] = true
+	}
 	room.Messages = make([]string, 0, cap)
 	return room
 }

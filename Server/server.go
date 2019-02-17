@@ -10,11 +10,12 @@ import (
 	"github.com/task_mail/Server/Room"
 	"io"
 	"strings"
+	"errors"
 )
 
 type Config struct {
 	Host, Port, Conn_type string
-	Room_name []string
+	Room_name map[string][]string
 }
 
 type User struct {
@@ -23,7 +24,7 @@ type User struct {
 }
 
 var (
-	rooms map[string]*room.Room
+	Rooms map[string]*room.Room
 )
 
 func main() {
@@ -37,12 +38,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	rooms = make(map[string]*room.Room)
-	for _, name := range conf.Room_name {
-		room := room.Create_room(name)
-		rooms[name] = room
+	Rooms = make(map[string]*room.Room)
+	for name, users := range conf.Room_name {
+		room := room.Create_room(users)
+		Rooms[name] = room
 	}
-
+	
 	l, err := net.Listen(conf.Conn_type, conf.Host+":"+conf.Port)
 	if err != nil {
 		fmt.Println("Error listening: ", err.Error())
@@ -62,10 +63,24 @@ func main() {
 		fmt.Println(conn.RemoteAddr())
 
 		user := SetUser(conn)
-		fmt.Printf("%+v\n", user)
 		go handleRequest(user)
 	}
 
+}
+
+func handleRequest(user *User) {
+	conn := user.conn
+	for {
+		text, err := ReadMessage(conn)
+		if err != nil {
+			return
+		}
+
+		fmt.Println(text)
+		text = strings.TrimSuffix(text, "\n")
+		status := Process(user, text)
+		fmt.Println(status)
+	}
 }
 
 func SetUser(conn net.Conn) *User {
@@ -73,33 +88,32 @@ func SetUser(conn net.Conn) *User {
 	user.conn = conn
 
 	reader := json.NewDecoder(conn)
-	_ = reader.Decode(user.rooms)
+	reader.Decode(&user.rooms)
 	return user
 }
 
-func handleRequest(user *User) {
-	conn := user.conn
-	for {
-		reader := bufio.NewReader(conn)
-		text, err := reader.ReadString('\n')
-		
-		if err != nil {
-			if err == io.EOF {
-				fmt.Println("User disonnected")
-			} else {
-				fmt.Println("Error readnig: ", err.Error())
-			}
-			return
+func ReadMessage(conn net.Conn) (string, error) {
+	reader := bufio.NewReader(conn)
+	text, err := reader.ReadString('\n')
+	
+	if err != nil {
+		if err == io.EOF {
+			fmt.Println("User disonnected")
+		} else {
+			fmt.Println("Error readnig: ", err.Error())
 		}
-		writer := bufio.NewWriter(conn)
-
-		fmt.Println(text)
-		text = strings.TrimSuffix(text, "\n")
-		status := Process(text)
-		writer.WriteString(status + "\n")
-		writer.Flush()
+		return "", errors.New("smth wrong")
 	}
+	return text, nil
 }
+
+func WriteMessage(conn net.Conn, message string) {
+	writer := bufio.NewWriter(conn)
+	writer.WriteString(message + "\n")
+	writer.Flush()
+}
+
+
 
 func ParseConfig(path string, conf *Config) error {
 	file, err := os.Open(path)
@@ -117,33 +131,62 @@ func ParseConfig(path string, conf *Config) error {
 	return nil
 }
 
-func ParseText(text string) (string, string) {
-	data := strings.SplitN(text, " ", 2)
-	fmt.Printf("%v\n", data)
-	return data[0], data[1]
-}
-
-func Process(text string) string {
+func Process(user *User, text string) string {
 	fmt.Println("Process method")
-	command, data := ParseText(text)
-	fmt.Println(command,"=>", data)
+	data := strings.Split(text, " ")
+	command, name_room := data[0], data[1]
+	fmt.Println(command,"=>", name_room)
+	var status string
 	switch command {
 	case "publish":
-		//Publish(data)
-		return "publish"
+		status = user.Publish(name_room)
+		return status
 	case "subscribe":
-		//subscribe(data)
-		return "subscribe"
+		status = user.Subscribe(name_room)
+		return status
+	case "get_history":
+		status = user.Get_History(name_room)
+		return status
 	default:
 		return "unknown command"
 	}
 }
 
-func Publish(text string) {
-	//room_name, data := ParseText(text)
-
+func (user *User) Get_History(name_room string) string {
+	room := Rooms[name_room]
+	messages := room.Get_messages()
+	writer := bufio.NewWriter(user.conn)
+	for _, message := range(messages) {
+		writer.WriteString(message + "\n")
+	}
+	writer.Flush()
+	return "History was sent"
 }
 
-func subscribe(text string) {
-	//room_name, data := ParseText(text)
+func (user *User) Publish(name_room string) string {
+	obj_room, ok := Rooms[name_room]
+	if ok == false {
+		return "Room doesn't exists"
+	}
+
+	username := user.rooms[name_room]
+	ok = obj_room.Is_user_in_room(username)
+	if ok == false {
+		return "User doesn't subscribe to this room"
+	}
+
+	WriteMessage(user.conn, "Type message to send")
+	fmt.Println("Wait message from user")
+	text, err := ReadMessage(user.conn)
+	if err != nil {
+		return "Message error"
+	}
+
+	obj_room.Add_message(text)
+	return "Send message is successful"
+	 
+}
+
+func (user *User) Subscribe(name_room string) string {
+	return "method doesn't realize"
 }
