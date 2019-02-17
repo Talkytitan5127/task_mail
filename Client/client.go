@@ -29,7 +29,7 @@ func main() {
 		fmt.Println("Error config: ", err.Error())
 		os.Exit(1)
 	}
-	fmt.Println(conf)
+	
 	conn, err := net.Dial(conf.Conn_type, conf.Host)
 	if err != nil {
 		fmt.Println(err)
