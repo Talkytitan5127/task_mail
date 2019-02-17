@@ -46,14 +46,15 @@ func main() {
 		Rooms[name] = room
 	}
 	
-	l, err := net.Listen(conf.Conn_type, conf.Host+":"+conf.Port)
+	host := fmt.Sprintf("%s:%s", conf.Host, conf.Port)
+	l, err := net.Listen(conf.Conn_type, host)
 	if err != nil {
 		fmt.Println("Error listening: ", err.Error())
 		os.Exit(1)
 	}
 	defer l.Close()
 
-	fmt.Printf("Listening on %s:%s\n", conf.Host, conf.Port)
+	fmt.Printf("Listening on %s\n", host)
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -169,7 +170,7 @@ func (user *User) Process(text string) string {
 func (user *User) Get_History(name_room string) string {
 	room := Rooms[name_room]
 	messages := room.Get_messages()
-	user.writer.WriteString("----"+name_room+"----\n")
+	user.writer.WriteString(fmt.Sprintf("----%s----\n", name_room))
 	for _, message := range(messages) {
 		user.writer.WriteString(message + "\n")
 	}
@@ -196,7 +197,7 @@ func (user *User) Publish(name_room string) string {
 	if err != nil {
 		return "Message error"
 	}
-
+	text = fmt.Sprintf("%s: %s", username, text)
 	obj_room.Add_message(text)
 	return "Send message is successful"
 	 
