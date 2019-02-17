@@ -2,5 +2,9 @@
     "host": "127.0.0.1",
     "port": "2233",
     "conn_type": "tcp",
-    "room_name": ["loby", "kitchen", "room#1"]
+    "room_name": {
+        "loby" : ["michael", "pavel"], 
+        "kitchen" : [], 
+        "room#1" : []
+    }
 }
