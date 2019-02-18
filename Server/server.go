@@ -236,7 +236,7 @@ func (user *User) Subscribe(name_room string) string {
 
 	err = obj_room.Add_user(username)
 	if err != nil {
-		user.WriteMessage("Type message to send")
+		user.WriteMessage("user already exist's")
 		return "subscribe failed"
 	}
 	user.WriteMessage("Subscribe successful")
