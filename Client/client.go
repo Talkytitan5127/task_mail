@@ -1,19 +1,19 @@
 package main
 
 import (
-	"fmt"
+	"bufio"
 	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
 	"net"
 	"os"
-	"flag"
-	"bufio"
-	"io"
 	"strings"
 )
 
 type Config struct {
 	Host, Conn_type string
-	Rooms map[string]string
+	Rooms           map[string]string
 }
 
 var (
@@ -29,7 +29,7 @@ func main() {
 		fmt.Println("Error config: ", err.Error())
 		os.Exit(1)
 	}
-	
+
 	conn, err := net.Dial(conf.Conn_type, conf.Host)
 	if err != nil {
 		fmt.Println(err)
@@ -104,7 +104,7 @@ func ReadHandler(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
 		text, err := reader.ReadString('\n')
-		text  = strings.TrimSuffix(text, "\n")
+		text = strings.TrimSuffix(text, "\n")
 		if err != nil {
 			if err == io.EOF {
 				fmt.Println("Server shut down")
@@ -123,7 +123,7 @@ func ReadHandler(conn net.Conn) {
 		default:
 			fmt.Println(text)
 		}
-		
+
 	}
 }
 

@@ -1,28 +1,29 @@
 package main
 
 import (
+	"bufio"
+	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"net"
 	"os"
-	"bufio"
-	"flag"
-	"encoding/json"
-	"github.com/task_mail/Server/Room"
-	"io"
 	"strings"
-	"errors"
+
+	room "github.com/task_mail/Server/Room"
 )
 
 type Config struct {
 	Host, Port, Conn_type string
-	Room_name map[string][]string
+	Room_name             map[string][]string
 }
 
 type User struct {
-	conn net.Conn
+	conn   net.Conn
 	reader *bufio.Reader
 	writer *bufio.Writer
-	rooms map[string]string
+	rooms  map[string]string
 }
 
 var (
@@ -45,7 +46,7 @@ func main() {
 		room := room.Create_room(users)
 		Rooms[name] = room
 	}
-	
+
 	host := fmt.Sprintf("%s:%s", conf.Host, conf.Port)
 	listen, err := net.Listen(conf.Conn_type, host)
 	if err != nil {
@@ -141,7 +142,7 @@ func SaveConfig(path string, conf Config) {
 
 	new_room_name := make(map[string][]string)
 	for r_name, obj_room := range Rooms {
-	new_room_name[r_name] = obj_room.Get_users()
+		new_room_name[r_name] = obj_room.Get_users()
 	}
 
 	conf.Room_name = new_room_name
@@ -171,7 +172,7 @@ func (user *User) Process(text string) string {
 	fmt.Println("Process method")
 	data := strings.Split(text, " ")
 	command, name_room := data[0], data[1]
-	fmt.Println(command,"=>", name_room)
+	fmt.Println(command, "=>", name_room)
 	var status string
 	switch command {
 	case "publish":
@@ -189,10 +190,10 @@ func (user *User) Get_History(name_room string) string {
 	room := Rooms[name_room]
 	messages := room.Get_messages()
 	user.writer.WriteString(fmt.Sprintf("----%s----\n", name_room))
-	for _, message := range(messages) {
+	for _, message := range messages {
 		user.writer.WriteString(message + "\n")
 	}
-	user.writer.WriteString(strings.Repeat("-", (8+len(name_room)))+"\n")
+	user.writer.WriteString(strings.Repeat("-", (8+len(name_room))) + "\n")
 	user.writer.Flush()
 	return "History was sent"
 }
@@ -218,7 +219,7 @@ func (user *User) Publish(name_room string) string {
 	text = fmt.Sprintf("%s: %s", username, text)
 	obj_room.Add_message(text)
 	return "Send message is successful"
-	 
+
 }
 
 func (user *User) Subscribe(name_room string) string {
@@ -244,7 +245,7 @@ func (user *User) Subscribe(name_room string) string {
 	user.Get_History(name_room)
 
 	user.WriteMessage("JSON")
-	data := map[string]string{"room":name_room, "nickname":username}
+	data := map[string]string{"room": name_room, "nickname": username}
 	_ = json.NewEncoder(user.conn).Encode(data)
 	return "user add successful"
 }
