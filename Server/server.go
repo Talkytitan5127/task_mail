@@ -182,6 +182,7 @@ func (user *User) Process(text string) string {
 		status = user.Subscribe(name_room)
 		return status
 	default:
+		user.WriteMessage("unknown command")
 		return "unknown command"
 	}
 }
