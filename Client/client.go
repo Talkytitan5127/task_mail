@@ -89,7 +89,7 @@ func WriteHandler(conn net.Conn) {
 		request, status := ParseText(text)
 		if status != "" {
 			fmt.Println("Error: ", status)
-			break
+			continue
 		}
 		request.SendPacket(conn)
 	}
@@ -138,6 +138,7 @@ func PrintHistory(conn net.Conn) {
 }
 
 func ParseText(text string) (*Request, string) {
+	text = strings.TrimSuffix(text, "\n")
 	if len(text) == 0 {
 		return nil, "wrong input"
 	}
