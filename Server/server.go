@@ -23,16 +23,11 @@ type User struct {
 }
 
 type Request struct {
-	CMD      string
-	Username string
-	Room     string
-	Message  string
+	CMD, Username, Room, Message string
 }
 
 type Response struct {
-	CMD    string
-	Status string
-	Error  string
+	CMD, Status, Error string
 }
 
 var (
@@ -40,11 +35,11 @@ var (
 )
 
 func main() {
-	var path_config = flag.String("config", "./config.json", "path to config file")
+	var pathConfig = flag.String("config", "./config.json", "path to config file")
 	flag.Parse()
 
 	var conf Config
-	err := ParseConfig(*path_config, &conf)
+	err := ParseConfig(*pathConfig, &conf)
 	if err != nil {
 		fmt.Println("Error config: ", err.Error())
 		os.Exit(1)
@@ -126,7 +121,6 @@ func (user *User) ReadPacket() (*Request, error) {
 	return &data, err
 }
 
-// answerclient
 func (user *User) WritePacket(data *Response) {
 	user.writer.Encode(&data)
 }
@@ -169,7 +163,6 @@ func (user *User) AnswerClient(data *Request, status, err string) {
 
 func (user *User) Publish(data *Request) (string, string) {
 	name_room, message := data.Room, data.Message
-	fmt.Printf("publish method\n|%s|%s|\n", name_room, message)
 	obj_room, ok := Rooms[name_room]
 	if ok == false {
 		return "ERROR", "Room doesn't exists"

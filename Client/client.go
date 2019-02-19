@@ -17,16 +17,11 @@ type Config struct {
 }
 
 type Request struct {
-	CMD      string
-	Username string
-	Room     string
-	Message  string
+	CMD, Username, Room, Message string
 }
 
 type Response struct {
-	CMD    string
-	Status string
-	Error  string
+	CMD, Status, Error string
 }
 
 var (
@@ -34,10 +29,10 @@ var (
 )
 
 func main() {
-	var path_config = flag.String("config", "./client_conf.json", "path to config file")
+	var pathConfig = flag.String("config", "./client_conf.json", "path to config file")
 	flag.Parse()
 
-	err := ParseConfigFile(*path_config, &conf)
+	err := ParseConfigFile(*pathConfig, &conf)
 	if err != nil {
 		fmt.Println("Error config: ", err.Error())
 		os.Exit(1)
@@ -131,7 +126,6 @@ func PrintSub(conn net.Conn) {
 	json.NewDecoder(conn).Decode(&resp)
 	conf.Rooms[resp["room"]] = resp["nickname"]
 	PrintHistory(conn)
-
 }
 
 func PrintHistory(conn net.Conn) {
