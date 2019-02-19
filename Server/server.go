@@ -247,6 +247,6 @@ func (user *User) Subscribe(name_room string) string {
 
 	user.WriteMessage("JSON")
 	data := map[string]string{"room": name_room, "nickname": username}
-	_ = json.NewEncoder(user.conn).Encode(data)
+	json.NewEncoder(user.conn).Encode(&data)
 	return "user add successful"
 }

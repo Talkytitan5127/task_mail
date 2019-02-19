@@ -5,30 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 )
-
-func RunServer() {
-	gopath := os.Getenv("GOPATH")
-	cmd := exec.Command(gopath+"/bin/Server", "--config=./Server/config.json")
-	err := cmd.Start()
-	if err != nil {
-		log.Printf("Command finished with error: %v", err)
-		os.Exit(1)
-	}
-}
-
-func TestMain(m *testing.M) {
-	RunServer()
-	exitcode := m.Run()
-	defer fmt.Println("shutdown")
-	os.Exit(exitcode)
-}
 
 func TestConnection(t *testing.T) {
 	conn, err := net.Dial("tcp", "127.0.0.1:2233")
@@ -110,7 +91,9 @@ func TestSubscribe(t *testing.T) {
 		t.Error("nickname already occupied")
 	}
 
-	response, _ = user.ReadMessage()
+	response, _ = user.ReadMessage() // begin of history
+	response, _ = user.ReadMessage() //end of history
+	response, _ = user.ReadMessage() //word json
 	if response != "JSON" {
 		t.Error("server don't send word JSON")
 	}
