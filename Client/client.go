@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"strings"
@@ -14,6 +13,19 @@ import (
 type Config struct {
 	Host, Conn_type string
 	Rooms           map[string]string
+}
+
+type Request struct {
+	CMD      string
+	Username string
+	Room     string
+	Message  string
+}
+
+type Response struct {
+	CMD    string
+	Status string
+	Error  string
 }
 
 var (
@@ -36,34 +48,22 @@ func main() {
 		os.Exit(1)
 	}
 	defer conn.Close()
-	//not working
-	//defer SaveConfig(*path_config, &conf)
+
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
-	SendConfig(conn)
+	conf.SendPacket(conn)
 
 	go ReadHandler(conn)
 	WriteHandler(conn)
 }
 
-func SendConfig(conn net.Conn) {
+func (conf Config) SendPacket(conn net.Conn) {
 	writer := json.NewEncoder(conn)
 	writer.Encode(conf.Rooms)
 }
 
-func SaveConfig(path string, conf *Config) {
-	fmt.Println("SaveConfig")
-	file, err := os.Open(path)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	err = encoder.Encode(&conf)
-	if err != nil {
-		fmt.Println(err)
-	}
-
+func (r *Request) SendPacket(conn net.Conn) {
+	writer := json.NewEncoder(conn)
+	writer.Encode(r)
 }
 
 func ParseConfigFile(path string, conf *Config) error {
@@ -84,58 +84,91 @@ func ParseConfigFile(path string, conf *Config) error {
 
 func WriteHandler(conn net.Conn) {
 	input := bufio.NewReaderSize(os.Stdin, 255)
-	writer := bufio.NewWriterSize(conn, 255)
 	for {
 		text, _ := input.ReadString('\n')
-		if len(text) >= 255 {
-			fmt.Println("Wrong len of message\n Type new message")
-			continue
-		}
-		_, err := writer.WriteString(text)
-		if err != nil {
-			fmt.Println("smth wrong with writer: ", err)
+		request, status := ParseText(text)
+		if status != "" {
+			fmt.Println("Error: ", status)
 			break
 		}
-		writer.Flush()
+		request.SendPacket(conn)
 	}
 }
 
 func ReadHandler(conn net.Conn) {
-	reader := bufio.NewReader(conn)
+	var resp *Response
+	reader := json.NewDecoder(conn)
 	for {
-		text, err := reader.ReadString('\n')
-		text = strings.TrimSuffix(text, "\n")
-		if err != nil {
-			if err == io.EOF {
-				fmt.Println("Server shut down")
-				conn.Close()
-				os.Exit(0)
-			} else {
-				fmt.Println("Error reader: ", err)
-			}
+		reader.Decode(&resp)
+		status := resp.Status
+		if status == "ERROR" {
+			fmt.Println(resp.Error)
+			continue
 		}
-		switch text {
-		case "JSON":
-			err = ReadJson(conn)
-			if err != nil {
-				fmt.Println(err)
-			}
+		fmt.Println(status)
+		switch resp.CMD {
+		case "get_history":
+			PrintHistory(conn)
+		case "subscribe":
+			PrintSub(conn)
 		default:
-			fmt.Println(text)
+			continue
 		}
 
 	}
 }
 
-func ReadJson(conn net.Conn) error {
-	data := make(map[string]string)
-	decoder := json.NewDecoder(conn)
-	err := decoder.Decode(&data)
-	if err != nil {
-		return err
+func PrintSub(conn net.Conn) {
+	var resp map[string]string
+	json.NewDecoder(conn).Decode(&resp)
+	conf.Rooms[resp["room"]] = resp["nickname"]
+	PrintHistory(conn)
+
+}
+
+func PrintHistory(conn net.Conn) {
+	var history []string
+	json.NewDecoder(conn).Decode(history)
+	output := "----history----\n"
+	for _, mes := range history {
+		output += (mes + "\n")
 	}
-	room_name := data["room"]
-	nickname := data["nickname"]
-	conf.Rooms[room_name] = nickname
-	return nil
+	output += "---------------\n"
+	fmt.Print(output)
+}
+
+func ParseText(text string) (*Request, string) {
+	if len(text) == 0 {
+		return nil, "wrong input"
+	}
+	data := strings.SplitN(text, " ", 2)
+	if len(data) < 2 {
+		return nil, "not enough argument"
+	}
+	fmt.Println("data: ", data)
+	var req Request
+	switch command := data[0]; command {
+	case "publish":
+		data = strings.SplitAfterN(data[1], " ", 2)
+		if len(data) < 2 {
+			return nil, "not enough argument"
+		}
+		if mes := data[1]; len(mes) > 254 {
+			return nil, "message > 255"
+		}
+		req = Request{CMD: command, Room: data[0], Message: data[1]}
+		return &req, ""
+	case "subscribe":
+		data = strings.SplitAfterN(data[1], " ", 2)
+		if len(data) < 2 {
+			return nil, "not enough argument"
+		}
+		req = Request{CMD: command, Room: data[0], Username: data[1]}
+		return &req, ""
+	case "get_history":
+		req = Request{CMD: command, Room: data[1]}
+		return &req, ""
+	default:
+		return nil, "unknown command"
+	}
 }
