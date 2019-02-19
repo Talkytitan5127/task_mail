@@ -30,6 +30,9 @@ func (r *Room) Is_user_in_room(name string) bool {
 }
 
 func (r *Room) Get_messages() []string {
+	if len(r.Messages) == 0 {
+		return []string{"no message yet"}
+	}
 	return r.Messages
 }
 
