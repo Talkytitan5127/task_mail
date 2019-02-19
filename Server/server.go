@@ -30,6 +30,11 @@ type Response struct {
 	CMD, Status, Error string
 }
 
+type History struct {
+	Room     string
+	Messages []string
+}
+
 var (
 	Rooms map[string]*room.Room
 )
@@ -71,6 +76,7 @@ func main() {
 		fmt.Println("User connect from:", conn.RemoteAddr())
 
 		user := SetUser(conn)
+		user.SendHistoryWhenConnect()
 		go handleRequest(user)
 	}
 
@@ -203,7 +209,15 @@ func (user *User) SendHistory(name_room string) (string, string) {
 
 	room := obj_room
 	messages := room.Get_messages()
-	packet := map[string][]string{"history": messages}
+	packet := History{Room: name_room, Messages: messages}
 	user.writer.Encode(&packet)
 	return "OK", "history was sent"
+}
+
+func (user *User) SendHistoryWhenConnect() {
+	for name := range user.rooms {
+		answer := Response{Status: "new_connect", Error: "", CMD: "get_history"}
+		user.WritePacket(&answer)
+		fmt.Println(user.SendHistory(name))
+	}
 }

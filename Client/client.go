@@ -24,6 +24,11 @@ type Response struct {
 	CMD, Status, Error string
 }
 
+type History struct {
+	Room     string
+	Messages []string
+}
+
 var (
 	conf Config
 )
@@ -130,13 +135,17 @@ func GetSubConfig(conn net.Conn) (string, string) {
 }
 
 func PrintHistory(conn net.Conn) {
-	var data map[string][]string
-	json.NewDecoder(conn).Decode(&data)
-	output := "----history----\n"
-	for _, mes := range data["history"] {
+	var data *History
+	err := json.NewDecoder(conn).Decode(&data)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	output := fmt.Sprintf("----%s----\n", data.Room)
+	for _, mes := range data.Messages {
 		output += (mes + "\n")
 	}
-	output += "---------------\n"
+	output += strings.Repeat("-", 8+(len(data.Room))) + "\n"
 	fmt.Print(output)
 }
 
