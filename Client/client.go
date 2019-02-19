@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -99,7 +100,14 @@ func ReadHandler(conn net.Conn) {
 	var resp *Response
 	reader := json.NewDecoder(conn)
 	for {
-		reader.Decode(&resp)
+		err := reader.Decode(&resp)
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println("server shut down")
+				os.Exit(0)
+			}
+			fmt.Println(err)
+		}
 		status := resp.Status
 		if status == "ERROR" {
 			fmt.Println(resp.Error)
@@ -146,21 +154,22 @@ func ParseText(text string) (*Request, string) {
 	if len(data) < 2 {
 		return nil, "not enough argument"
 	}
-	fmt.Println("data: ", data)
+
 	var req Request
 	switch command := data[0]; command {
 	case "publish":
-		data = strings.SplitAfterN(data[1], " ", 2)
+		data = strings.SplitN(data[1], " ", 2)
 		if len(data) < 2 {
 			return nil, "not enough argument"
 		}
 		if mes := data[1]; len(mes) > 254 {
 			return nil, "message > 255"
 		}
+
 		req = Request{CMD: command, Room: data[0], Message: data[1]}
 		return &req, ""
 	case "subscribe":
-		data = strings.SplitAfterN(data[1], " ", 2)
+		data = strings.SplitN(data[1], " ", 2)
 		if len(data) < 2 {
 			return nil, "not enough argument"
 		}
