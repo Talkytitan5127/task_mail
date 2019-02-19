@@ -40,44 +40,4 @@ $GOPATH/bin/Client
 subscribe room nickname
 publish room message
 get_history room
-
-JSON-PROTOCOL:
-publish request
-{
-    "CMD": "publish",
-    "room": "nameroom",
-    "message": "message",
-    "username": "nickname"
-}
-
-subscribe request
-{
-    "CMD": "subscribe",
-    "room": "nameroom",
-    "username": "nickname"
-}
-
-get_history request
-{
-    "CMD": "get_history",
-    "room": room,
-    "username": nickname
-}
-
-response
-{
-    "status": ["OK", "ERROR"]
-    "error": ["None", "text of error"]
-    "CMD": "process command"
-}
-
-subscribe response
-{
-    "room": "roomname",
-    "nickname": "new nick",
-}
-
-get_history response
-{
-    "history": ["mes1", "mes2"]
-}
+```

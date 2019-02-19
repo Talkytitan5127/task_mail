@@ -12,8 +12,8 @@ import (
 )
 
 type Config struct {
-	Host, Conn_type string
-	Rooms           map[string]string
+	Host, Port, Conn_type string
+	Rooms                 map[string]string
 }
 
 type Request struct {
@@ -37,8 +37,8 @@ func main() {
 		fmt.Println("Error config: ", err.Error())
 		os.Exit(1)
 	}
-
-	conn, err := net.Dial(conf.Conn_type, conf.Host)
+	host := fmt.Sprintf("%s:%s", conf.Host, conf.Port)
+	conn, err := net.Dial(conf.Conn_type, host)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -113,7 +113,7 @@ func ReadHandler(conn net.Conn) {
 		case "get_history":
 			PrintHistory(conn)
 		case "subscribe":
-			PrintSub(conn)
+			GetSubConfig(conn)
 		default:
 			continue
 		}
@@ -121,7 +121,7 @@ func ReadHandler(conn net.Conn) {
 	}
 }
 
-func PrintSub(conn net.Conn) {
+func GetSubConfig(conn net.Conn) {
 	var resp map[string]string
 	json.NewDecoder(conn).Decode(&resp)
 	conf.Rooms[resp["room"]] = resp["nickname"]

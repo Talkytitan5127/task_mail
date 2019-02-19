@@ -110,8 +110,7 @@ func SetUser(conn net.Conn) *User {
 	user.reader = json.NewDecoder(conn)
 	user.writer = json.NewEncoder(conn)
 
-	reader := json.NewDecoder(conn)
-	reader.Decode(&user.rooms)
+	user.reader.Decode(&user.rooms)
 	return user
 }
 
