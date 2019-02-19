@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
 
 	room "github.com/task_mail/Server/Room"
 )
@@ -168,7 +169,10 @@ func (user *User) AnswerClient(data *Request, status, err string) {
 
 func (user *User) Publish(data *Request) (string, string) {
 	name_room, message := data.Room, data.Message
+	var mux sync.Mutex
+	mux.Lock()
 	obj_room, ok := Rooms[name_room]
+	mux.Unlock()
 	if ok == false {
 		return "ERROR", "Room doesn't exists"
 	}
@@ -187,7 +191,10 @@ func (user *User) Publish(data *Request) (string, string) {
 
 func (user *User) Subscribe(data *Request) (string, string) {
 	name_room, username := data.Room, data.Username
+	var mux sync.Mutex
+	mux.Lock()
 	obj_room, ok := Rooms[name_room]
+	mux.Unlock()
 	if ok == false {
 		return "ERROR", "Room doesn't exists"
 	}
@@ -202,7 +209,10 @@ func (user *User) Subscribe(data *Request) (string, string) {
 }
 
 func (user *User) SendHistory(name_room string) (string, string) {
+	var mux sync.Mutex
+	mux.Lock()
 	obj_room, ok := Rooms[name_room]
+	mux.Unlock()
 	if ok == false {
 		return "ERROR", "Room doesn't exists"
 	}
@@ -210,7 +220,11 @@ func (user *User) SendHistory(name_room string) (string, string) {
 	room := obj_room
 	messages := room.Get_messages()
 	packet := History{Room: name_room, Messages: messages}
-	user.writer.Encode(&packet)
+	err := user.writer.Encode(&packet)
+	if err != nil {
+		fmt.Println(err)
+		return "ERROR", "couldn't send json"
+	}
 	return "OK", "history was sent"
 }
 

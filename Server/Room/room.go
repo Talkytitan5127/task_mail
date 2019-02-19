@@ -2,18 +2,20 @@ package room
 
 import (
 	"errors"
+	"sync"
 )
 
 type Room struct {
-	Users map[string]bool
+	Users    map[string]bool
 	Messages []string
+	mux      sync.Mutex
 }
 
 func Create_room(users []string) *Room {
 	cap := 128
 	room := new(Room)
 	room.Users = make(map[string]bool)
-	for _, name := range(users) {
+	for _, name := range users {
 		room.Users[name] = true
 	}
 	room.Messages = make([]string, 0, cap)
@@ -21,7 +23,9 @@ func Create_room(users []string) *Room {
 }
 
 func (r *Room) Is_user_in_room(name string) bool {
+	r.mux.Lock()
 	_, check := r.Users[name]
+	r.mux.Unlock()
 	return check
 }
 
@@ -40,6 +44,8 @@ func (r *Room) Add_message(mes string) {
 }
 
 func (r *Room) Add_user(name string) error {
+	r.mux.Lock()
+	defer r.mux.Unlock()
 	_, ok := r.Users[name]
 	if ok {
 		return errors.New("user already exist's")
@@ -50,9 +56,11 @@ func (r *Room) Add_user(name string) error {
 }
 
 func (r *Room) Get_users() []string {
+	r.mux.Lock()
 	var users []string
 	for name, _ := range r.Users {
 		users = append(users, name)
 	}
+	r.mux.Unlock()
 	return users
 }
