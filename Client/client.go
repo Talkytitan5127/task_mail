@@ -113,26 +113,27 @@ func ReadHandler(conn net.Conn) {
 		case "get_history":
 			PrintHistory(conn)
 		case "subscribe":
-			GetSubConfig(conn)
+			room, _ := GetSubConfig(conn)
+			req := Request{CMD: "get_history", Room: room}
+			req.SendPacket(conn)
 		default:
 			continue
 		}
-
 	}
 }
 
-func GetSubConfig(conn net.Conn) {
+func GetSubConfig(conn net.Conn) (string, string) {
 	var resp map[string]string
 	json.NewDecoder(conn).Decode(&resp)
 	conf.Rooms[resp["room"]] = resp["nickname"]
-	PrintHistory(conn)
+	return resp["room"], resp["nickname"]
 }
 
 func PrintHistory(conn net.Conn) {
-	var history []string
-	json.NewDecoder(conn).Decode(history)
+	var data map[string][]string
+	json.NewDecoder(conn).Decode(&data)
 	output := "----history----\n"
-	for _, mes := range history {
+	for _, mes := range data["history"] {
 		output += (mes + "\n")
 	}
 	output += "---------------\n"
@@ -166,6 +167,10 @@ func ParseText(text string) (*Request, string) {
 		data = strings.SplitN(data[1], " ", 2)
 		if len(data) < 2 {
 			return nil, "not enough argument"
+		}
+		_, ok := conf.Rooms[data[0]]
+		if ok == true {
+			return nil, "you already subscribed to this room"
 		}
 		req = Request{CMD: command, Room: data[0], Username: data[1]}
 		return &req, ""

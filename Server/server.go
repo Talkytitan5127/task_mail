@@ -99,7 +99,7 @@ func handleRequest(user *User) {
 			return
 		}
 		status, desc := user.Process(data)
-		fmt.Println(status)
+		fmt.Println(status, desc)
 		user.AnswerClient(data, status, desc)
 	}
 }
@@ -153,10 +153,10 @@ func (user *User) AnswerClient(data *Request, status, err string) {
 	switch data.CMD {
 	case "subscribe":
 		user_conf := map[string]string{"room": name_room, "nickname": user.rooms[name_room]}
-		user.writer.Encode(user_conf)
-		user.SendHistory(name_room)
+		user.writer.Encode(&user_conf)
+		fmt.Println(user.SendHistory(name_room))
 	case "get_history":
-		user.SendHistory(name_room)
+		fmt.Println(user.SendHistory(name_room))
 	}
 }
 
@@ -204,6 +204,6 @@ func (user *User) SendHistory(name_room string) (string, string) {
 	room := obj_room
 	messages := room.Get_messages()
 	packet := map[string][]string{"history": messages}
-	user.writer.Encode(packet)
+	user.writer.Encode(&packet)
 	return "OK", "history was sent"
 }
