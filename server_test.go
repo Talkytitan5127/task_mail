@@ -32,10 +32,11 @@ type History struct {
 
 func TestConnection(t *testing.T) {
 	hostname := fmt.Sprintf("%s:%s", host, port)
-	_, err := net.Dial(ctype, hostname)
+	conn, err := net.Dial(ctype, hostname)
 	if err != nil {
 		t.Error(err)
 	}
+	defer conn.Close()
 }
 
 func SendConfig(conn net.Conn) {
@@ -51,19 +52,7 @@ func TestGetGreetingHistory(t *testing.T) {
 	}
 	defer conn.Close()
 
-	SendConfig(conn)
-	var history *History
-	var resp *Response
-
-	err = json.NewDecoder(conn).Decode(&resp)
-	if resp.Status != "new_connect" || resp.CMD != "get_history" {
-		t.Error("incorrect response")
-	}
-
-	err = json.NewDecoder(conn).Decode(&history)
-	if history.Room != "loby" || history.Messages[0] != "no message yet" {
-		t.Error("incorrect history packet")
-	}
+	ConnectServer(conn, t)
 }
 
 func ConnectServer(conn net.Conn, t *testing.T) {
@@ -72,6 +61,9 @@ func ConnectServer(conn net.Conn, t *testing.T) {
 	var resp *Response
 	writer := json.NewDecoder(conn)
 	writer.Decode(&resp)
+	if resp.Status != "OK" || resp.CMD != "get_history" {
+		t.Error("incorrect response")
+	}
 	writer.Decode(&history)
 	if history.Room != "loby" || history.Messages[0] != "no message yet" {
 		t.Error("incorrect history packet")
