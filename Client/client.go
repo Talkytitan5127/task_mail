@@ -36,6 +36,8 @@ type History struct {
 var (
 	conf       Config
 	pathConfig *string
+	writer     *json.Encoder
+	reader     *json.Decoder
 )
 
 func main() {
@@ -56,6 +58,9 @@ func main() {
 	defer conn.Close()
 
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
+	writer = json.NewEncoder(conn)
+	reader = json.NewDecoder(conn)
+
 	conf.SendPacket(conn)
 
 	go ReadHandler(conn)
@@ -64,13 +69,11 @@ func main() {
 
 //SendPacket with user settings to Server
 func (conf Config) SendPacket(conn net.Conn) {
-	writer := json.NewEncoder(conn)
 	writer.Encode(conf.Rooms)
 }
 
 //SendPacket request to Server
 func (r *Request) SendPacket(conn net.Conn) {
-	writer := json.NewEncoder(conn)
 	writer.Encode(r)
 }
 
@@ -125,7 +128,6 @@ func WriteHandler(conn net.Conn) {
 //ReadHandler from Server
 func ReadHandler(conn net.Conn) {
 	var resp *Response
-	reader := json.NewDecoder(conn)
 	for {
 		err := reader.Decode(&resp)
 		if err != nil {
@@ -160,7 +162,7 @@ func ReadHandler(conn net.Conn) {
 func GetSubConfig(conn net.Conn) string {
 	fmt.Println("GetSubConfig")
 	var resp map[string]string
-	json.NewDecoder(conn).Decode(&resp)
+	reader.Decode(&resp)
 	conf.Rooms[resp["room"]] = resp["nickname"]
 	return resp["room"]
 }
@@ -168,7 +170,7 @@ func GetSubConfig(conn net.Conn) string {
 //PrintHistory of Room
 func PrintHistory(conn net.Conn) {
 	var data *History
-	err := json.NewDecoder(conn).Decode(&data)
+	err := reader.Decode(&data)
 	if err != nil {
 		fmt.Println(err)
 		return

@@ -188,7 +188,6 @@ func (user *User) Publish(data *Request) (string, string) {
 	if ok == false {
 		return "ERROR", "Room doesn't exists"
 	}
-	fmt.Printf("%+v\n", user)
 	username := user.rooms[NameRoom]
 	ok = ObjRoom.Is_user_in_room(username)
 	if ok == false {
