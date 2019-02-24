@@ -34,11 +34,12 @@ type History struct {
 }
 
 var (
-	conf Config
+	conf       Config
+	pathConfig *string
 )
 
 func main() {
-	var pathConfig = flag.String("config", "./client_conf.json", "path to config file")
+	pathConfig = flag.String("config", "./client_conf.json", "path to config file")
 	flag.Parse()
 
 	err := ParseConfigFile(*pathConfig, &conf)
@@ -71,6 +72,23 @@ func (conf Config) SendPacket(conn net.Conn) {
 func (r *Request) SendPacket(conn net.Conn) {
 	writer := json.NewEncoder(conn)
 	writer.Encode(r)
+}
+
+//SaveConfig save current client's rooms to json file
+func SaveConfig(path string, conf *Config) {
+	fmt.Println("SaveConfig")
+	file, err := os.Create(path)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(&conf)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 }
 
 //ParseConfigFile with conn's setting
@@ -113,6 +131,7 @@ func ReadHandler(conn net.Conn) {
 		if err != nil {
 			if err == io.EOF {
 				fmt.Println("server shut down")
+				SaveConfig(*pathConfig, &conf)
 				os.Exit(0)
 			}
 			fmt.Println(err)
@@ -154,8 +173,6 @@ func PrintHistory(conn net.Conn) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("PRINTHISTORY")
-	fmt.Printf("%+v\n", data)
 	output := fmt.Sprintf("----%s----\n", data.Room)
 	for _, mes := range data.Messages {
 		output += (mes + "\n")
