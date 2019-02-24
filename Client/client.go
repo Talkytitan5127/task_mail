@@ -11,33 +11,34 @@ import (
 	"strings"
 )
 
+//Config for Server
 type Config struct {
-	Host, Conn_type string
-	Rooms           map[string]string
+	Host, ConnType string
+	Rooms          map[string]string
 }
 
 var (
-	conf Config
+	conf       Config
+	PathConfig *string
 )
 
 func main() {
-	var path_config = flag.String("config", "./client_conf.json", "path to config file")
+	PathConfig = flag.String("config", "./client_conf.json", "path to config file")
 	flag.Parse()
 
-	err := ParseConfigFile(*path_config, &conf)
+	err := ParseConfigFile(*PathConfig, &conf)
 	if err != nil {
 		fmt.Println("Error config: ", err.Error())
 		os.Exit(1)
 	}
 
-	conn, err := net.Dial(conf.Conn_type, conf.Host)
+	conn, err := net.Dial(conf.ConnType, conf.Host)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 	defer conn.Close()
-	//not working
-	//defer SaveConfig(*path_config, &conf)
+
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
 	SendConfig(conn)
 
@@ -45,14 +46,16 @@ func main() {
 	WriteHandler(conn)
 }
 
+//SendConfig send room's client to server
 func SendConfig(conn net.Conn) {
 	writer := json.NewEncoder(conn)
 	writer.Encode(conf.Rooms)
 }
 
+//SaveConfig save current client's rooms to json file
 func SaveConfig(path string, conf *Config) {
 	fmt.Println("SaveConfig")
-	file, err := os.Open(path)
+	file, err := os.Create(path)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -66,6 +69,7 @@ func SaveConfig(path string, conf *Config) {
 
 }
 
+//ParseConfigFile read *.json file with server's param
 func ParseConfigFile(path string, conf *Config) error {
 	file, err := os.Open(path)
 	if err != nil {
@@ -82,6 +86,7 @@ func ParseConfigFile(path string, conf *Config) error {
 	return nil
 }
 
+//WriteHandler read Stdin
 func WriteHandler(conn net.Conn) {
 	input := bufio.NewReaderSize(os.Stdin, 255)
 	writer := bufio.NewWriterSize(conn, 255)
@@ -90,6 +95,11 @@ func WriteHandler(conn net.Conn) {
 		if len(text) >= 255 {
 			fmt.Println("Wrong len of message\n Type new message")
 			continue
+		}
+		fmt.Print(text)
+		if text == "EXIT\n" {
+			SaveConfig(*PathConfig, &conf)
+			return
 		}
 		_, err := writer.WriteString(text)
 		if err != nil {
@@ -100,6 +110,7 @@ func WriteHandler(conn net.Conn) {
 	}
 }
 
+//ReadHandler read answers from server
 func ReadHandler(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
@@ -108,10 +119,11 @@ func ReadHandler(conn net.Conn) {
 		if err != nil {
 			if err == io.EOF {
 				fmt.Println("Server shut down")
+				SaveConfig(*PathConfig, &conf)
 				conn.Close()
 				os.Exit(0)
 			} else {
-				fmt.Println("Error reader: ", err)
+				return
 			}
 		}
 		switch text {
@@ -127,15 +139,16 @@ func ReadHandler(conn net.Conn) {
 	}
 }
 
-func ReadJson(conn net.Conn) error {
+//ReadJSON from server
+func ReadJSON(conn net.Conn) error {
 	data := make(map[string]string)
 	decoder := json.NewDecoder(conn)
 	err := decoder.Decode(&data)
 	if err != nil {
 		return err
 	}
-	room_name := data["room"]
+	roomName := data["room"]
 	nickname := data["nickname"]
-	conf.Rooms[room_name] = nickname
+	conf.Rooms[roomName] = nickname
 	return nil
 }

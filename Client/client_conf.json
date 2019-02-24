@@ -1,5 +1,1 @@
-{
-    "Host": "127.0.0.1:2233",
-    "Conn_type": "tcp",
-    "Rooms": {"loby":"pavel"}
-}
+{"Host":"127.0.0.1:2233","Conn_type":"tcp","Rooms":{"loby":"pavel"}}
