@@ -52,3 +52,13 @@ get_history room
 
 Выполнение команды "get_history":
 ![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_history.png)
+
+Запустить тесты (из корневой папки проекта):
+```console
+go test -v
+```
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_test.png)
+
+## Note:
+В файле конфигурации для сервера в поле "room_name" указываются названия комнат, которые будут созданы после запуска сервера.
+В файле конфигурации для клиента в поле "Rooms" указываются комнаты в формате {"название комнаты":"имя клиента"}, на которые подписан Клиент.
