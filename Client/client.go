@@ -11,19 +11,23 @@ import (
 	"strings"
 )
 
+//Config connection
 type Config struct {
-	Host, Port, Conn_type string
-	Rooms                 map[string]string
+	Host, Port, ConnType string
+	Rooms                map[string]string
 }
 
+//Request packet
 type Request struct {
 	CMD, Username, Room, Message string
 }
 
+//Response packet
 type Response struct {
 	CMD, Status, Error string
 }
 
+//History packet
 type History struct {
 	Room     string
 	Messages []string
@@ -43,7 +47,7 @@ func main() {
 		os.Exit(1)
 	}
 	host := fmt.Sprintf("%s:%s", conf.Host, conf.Port)
-	conn, err := net.Dial(conf.Conn_type, host)
+	conn, err := net.Dial(conf.ConnType, host)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -57,16 +61,19 @@ func main() {
 	WriteHandler(conn)
 }
 
+//SendPacket with user settings to Server
 func (conf Config) SendPacket(conn net.Conn) {
 	writer := json.NewEncoder(conn)
 	writer.Encode(conf.Rooms)
 }
 
+//SendPacket request to Server
 func (r *Request) SendPacket(conn net.Conn) {
 	writer := json.NewEncoder(conn)
 	writer.Encode(r)
 }
 
+//ParseConfigFile with conn's setting
 func ParseConfigFile(path string, conf *Config) error {
 	file, err := os.Open(path)
 	if err != nil {
@@ -83,6 +90,7 @@ func ParseConfigFile(path string, conf *Config) error {
 	return nil
 }
 
+//WriteHandler from stdin to server
 func WriteHandler(conn net.Conn) {
 	input := bufio.NewReaderSize(os.Stdin, 255)
 	for {
@@ -96,6 +104,7 @@ func WriteHandler(conn net.Conn) {
 	}
 }
 
+//ReadHandler from Server
 func ReadHandler(conn net.Conn) {
 	var resp *Response
 	reader := json.NewDecoder(conn)
@@ -128,6 +137,7 @@ func ReadHandler(conn net.Conn) {
 	}
 }
 
+//GetSubConfig of new subscribe room
 func GetSubConfig(conn net.Conn) string {
 	fmt.Println("GetSubConfig")
 	var resp map[string]string
@@ -136,6 +146,7 @@ func GetSubConfig(conn net.Conn) string {
 	return resp["room"]
 }
 
+//PrintHistory of Room
 func PrintHistory(conn net.Conn) {
 	var data *History
 	err := json.NewDecoder(conn).Decode(&data)
@@ -153,6 +164,7 @@ func PrintHistory(conn net.Conn) {
 	fmt.Print(output)
 }
 
+//ParseText from stdin
 func ParseText(text string) (*Request, string) {
 	text = strings.TrimSuffix(text, "\n")
 	if len(text) == 0 {
