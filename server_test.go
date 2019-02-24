@@ -52,20 +52,20 @@ func TestGetGreetingHistory(t *testing.T) {
 	}
 	defer conn.Close()
 
-	ConnectServer(conn, t)
+	ConnectServer(conn, "no message yet", t)
 }
 
-func ConnectServer(conn net.Conn, t *testing.T) {
+func ConnectServer(conn net.Conn, mes string, t *testing.T) {
 	SendConfig(conn)
 	var history *History
 	var resp *Response
 	writer := json.NewDecoder(conn)
 	writer.Decode(&resp)
-	if resp.Status != "OK" || resp.CMD != "get_history" {
+	if resp.Status != "new_connect" || resp.CMD != "get_history" {
 		t.Error("incorrect response")
 	}
 	writer.Decode(&history)
-	if history.Room != "loby" || history.Messages[0] != "no message yet" {
+	if history.Room != "loby" || history.Messages[0] != mes {
 		t.Error("incorrect history packet")
 	}
 
@@ -78,7 +78,7 @@ func TestPublish(t *testing.T) {
 		t.Error(err)
 	}
 	defer conn.Close()
-	ConnectServer(conn, t)
+	ConnectServer(conn, "no message yet", t)
 
 	req := Request{CMD: "publish", Room: "loby", Message: "hello world"}
 	json.NewEncoder(conn).Encode(&req)
@@ -87,5 +87,30 @@ func TestPublish(t *testing.T) {
 	json.NewDecoder(conn).Decode(&resp)
 	if resp.Status != "OK" || resp.CMD != "publish" {
 		t.Error("status != OK")
+	}
+}
+
+func TestSubscribe(t *testing.T) {
+	hostname := fmt.Sprintf("%s:%s", host, port)
+	conn, err := net.Dial(ctype, hostname)
+	if err != nil {
+		t.Error(err)
+	}
+	defer conn.Close()
+	ConnectServer(conn, "pavel: hello world", t)
+
+	req := Request{CMD: "subscribe", Room: "kitchen", Username: "butcher"}
+	json.NewEncoder(conn).Encode(&req)
+
+	var resp *Response
+	json.NewDecoder(conn).Decode(&resp)
+	if resp.Status != "OK" || resp.CMD != "subscribe" {
+		t.Error("status != OK")
+	}
+
+	var data map[string]string
+	json.NewDecoder(conn).Decode(&data)
+	if data["nickname"] != "butcher" || data["room"] != "kitchen" {
+		t.Error("error subscribe")
 	}
 }
