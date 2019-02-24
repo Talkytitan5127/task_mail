@@ -25,10 +25,14 @@ chmod 700 build.sh
 ./build.sh
 ```
 
-Запустить сервер:
+Запустить сервер из папки /Server:
 ```console
 cd Server/
 $GOPATH/bin/Server
+```
+или дополнительно указав путь к config.json
+```console
+$GOPATH/bin/Server --config="/$GOPATH/src/github.com/task_mail/Server/config.json
 ```
 
 Запустить клиент:
@@ -38,6 +42,25 @@ $GOPATH/bin/Client
 ```
 
 Доступные команды пользователю:
-    subscribe room
-    publish room
-    get_history room
+    subscribe room  (подписаться на комнату)
+    publish room  (отправить сообщение в комнату)
+    get_history room  (посмотреть историю сообщений комнаты)
+
+Процесс выполнения команды "subscribe" на примере комнаты "kitchen":
+1) пишем команду "subscribe kitchen"
+2) прописываем наше новое имя для комнаты "kitchen", например "butcher"
+3) получаем ответ от сервера
+
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/subscribe.png)
+
+Процесс выполнения команды "publish" на примере комнаты "loby":
+1) пишем команду "publish loby"
+2) вводим наше сообщение
+3) получаем ответ, что сообщение добавлено
+
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/publish.png)
+
+Процесс выполнения команды "get_history":
+1) ввести команду "get_history loby"
+
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/history.png)
