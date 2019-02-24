@@ -166,6 +166,9 @@ func (user *User) Process(text string) string {
 	case "subscribe":
 		status = user.Subscribe(NameRoom)
 		return status
+	case "get_history":
+		status = user.GetHistory(NameRoom)
+		return status
 	default:
 		user.WriteMessage("unknown command")
 		return "unknown command"
@@ -206,6 +209,7 @@ func (user *User) Publish(NameRoom string) string {
 	}
 	text = fmt.Sprintf("%s: %s", username, text)
 	obj_room.Add_message(text)
+	user.WriteMessage("Send message is successful")
 	return "Send message is successful"
 
 }
