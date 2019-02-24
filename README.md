@@ -28,12 +28,14 @@ chmod 700 build.sh
 cd Server/
 $GOPATH/bin/Server
 ```
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_runserver.png)
 
 Запустить клиент:
 ```console
 cd Client/
 $GOPATH/bin/Client
 ```
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_runclient.png)
 
 Доступные команды пользователю:
 ```console
@@ -41,3 +43,12 @@ subscribe room nickname
 publish room message
 get_history room
 ```
+
+Выполнение команды "publish":
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_publish.png)
+
+Выполнение команды "subscribe":
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_subscribe.png)
+
+Выполнение команды "get_history":
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_history.png)
