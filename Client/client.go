@@ -118,8 +118,9 @@ func ReadHandler(conn net.Conn) {
 		case "get_history":
 			PrintHistory(conn)
 		case "subscribe":
-			room, _ := GetSubConfig(conn)
-			req := Request{CMD: "get_history", Room: room}
+			room := GetSubConfig(conn)
+			mes := fmt.Sprintf("get_history %s\n", room)
+			req, _ := ParseText(mes)
 			req.SendPacket(conn)
 		default:
 			continue
@@ -127,11 +128,12 @@ func ReadHandler(conn net.Conn) {
 	}
 }
 
-func GetSubConfig(conn net.Conn) (string, string) {
+func GetSubConfig(conn net.Conn) string {
+	fmt.Println("GetSubConfig")
 	var resp map[string]string
 	json.NewDecoder(conn).Decode(&resp)
 	conf.Rooms[resp["room"]] = resp["nickname"]
-	return resp["room"], resp["nickname"]
+	return resp["room"]
 }
 
 func PrintHistory(conn net.Conn) {
@@ -141,6 +143,8 @@ func PrintHistory(conn net.Conn) {
 		fmt.Println(err)
 		return
 	}
+	fmt.Println("PRINTHISTORY")
+	fmt.Printf("%+v\n", data)
 	output := fmt.Sprintf("----%s----\n", data.Room)
 	for _, mes := range data.Messages {
 		output += (mes + "\n")

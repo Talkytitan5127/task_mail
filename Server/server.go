@@ -143,7 +143,7 @@ func (user *User) Process(data *Request) (string, string) {
 	case "subscribe":
 		status, err = user.Subscribe(data)
 	case "get_history":
-		status, err = "OK", "history will be send"
+		status, err = user.CheckHistory(data)
 	default:
 		status, err = "ERROR", "unknown command"
 	}
@@ -151,6 +151,7 @@ func (user *User) Process(data *Request) (string, string) {
 }
 
 func (user *User) AnswerClient(data *Request, status, err string) {
+	fmt.Println("Answer")
 	answer := Response{Status: status, Error: err, CMD: data.CMD}
 	user.WritePacket(&answer)
 	if status != "OK" {
@@ -161,9 +162,8 @@ func (user *User) AnswerClient(data *Request, status, err string) {
 	case "subscribe":
 		user_conf := map[string]string{"room": name_room, "nickname": user.rooms[name_room]}
 		user.writer.Encode(&user_conf)
-		fmt.Println(user.SendHistory(name_room))
 	case "get_history":
-		fmt.Println(user.SendHistory(name_room))
+		user.SendHistory(data)
 	}
 }
 
@@ -176,7 +176,7 @@ func (user *User) Publish(data *Request) (string, string) {
 	if ok == false {
 		return "ERROR", "Room doesn't exists"
 	}
-
+	fmt.Printf("%+v\n", user)
 	username := user.rooms[name_room]
 	ok = obj_room.Is_user_in_room(username)
 	if ok == false {
@@ -204,19 +204,25 @@ func (user *User) Subscribe(data *Request) (string, string) {
 		return "ERROR", "user already exist's"
 	}
 	user.rooms[name_room] = username
-
 	return "OK", "user add successful"
 }
 
-func (user *User) SendHistory(name_room string) (string, string) {
+func (user *User) CheckHistory(data *Request) (string, string) {
+	name_room := data.Room
 	var mux sync.Mutex
 	mux.Lock()
-	obj_room, ok := Rooms[name_room]
+	_, ok := Rooms[name_room]
 	mux.Unlock()
 	if ok == false {
 		return "ERROR", "Room doesn't exists"
 	}
+	return "OK", "history was sent"
 
+}
+
+func (user *User) SendHistory(data *Request) (string, string) {
+	name_room := data.Room
+	obj_room, _ := Rooms[name_room]
 	room := obj_room
 	messages := room.Get_messages()
 	packet := History{Room: name_room, Messages: messages}
@@ -230,8 +236,9 @@ func (user *User) SendHistory(name_room string) (string, string) {
 
 func (user *User) SendHistoryWhenConnect() {
 	for name := range user.rooms {
+		req := Request{Room: name}
 		answer := Response{Status: "new_connect", Error: "", CMD: "get_history"}
 		user.WritePacket(&answer)
-		fmt.Println(user.SendHistory(name))
+		fmt.Println(user.SendHistory(&req))
 	}
 }

@@ -4,7 +4,7 @@
     "conn_type": "tcp",
     "room_name": {
         "loby" : ["michael", "pavel"], 
-        "kitchen" : [], 
+        "kitchen" : ["misha"], 
         "room#1" : []
     }
 }
