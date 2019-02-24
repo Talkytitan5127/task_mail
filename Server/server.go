@@ -14,11 +14,13 @@ import (
 	room "github.com/task_mail/Server/Room"
 )
 
+//Config of server
 type Config struct {
-	Host, Port, Conn_type string
-	Room_name             map[string][]string
+	Host, Port, ConnType string
+	RoomName             map[string][]string
 }
 
+//User data
 type User struct {
 	conn   net.Conn
 	reader *bufio.Reader
@@ -31,30 +33,29 @@ var (
 )
 
 func main() {
-	var path_config = flag.String("config", "./config.json", "path to config file")
+	var PathConfig = flag.String("config", "./config.json", "path to config file")
 	flag.Parse()
 
 	var conf Config
-	err := ParseConfig(*path_config, &conf)
+	err := ParseConfig(*PathConfig, &conf)
 	if err != nil {
 		fmt.Println("Error config: ", err.Error())
 		os.Exit(1)
 	}
 
 	Rooms = make(map[string]*room.Room)
-	for name, users := range conf.Room_name {
+	for name, users := range conf.RoomName {
 		room := room.Create_room(users)
 		Rooms[name] = room
 	}
 
 	host := fmt.Sprintf("%s:%s", conf.Host, conf.Port)
-	listen, err := net.Listen(conf.Conn_type, host)
+	listen, err := net.Listen(conf.ConnType, host)
 	if err != nil {
 		fmt.Println("Error listening: ", err.Error())
 		os.Exit(1)
 	}
 	defer listen.Close()
-	defer SaveConfig(*path_config, conf)
 
 	fmt.Printf("Listening on %s\n", host)
 	for {
@@ -93,6 +94,7 @@ func handleRequest(user *User) {
 	}
 }
 
+//CheckInput control input text
 func CheckInput(text string) error {
 	data := strings.Split(text, " ")
 	if text == "" || text == "\n" || len(data) < 2 {
@@ -101,6 +103,7 @@ func CheckInput(text string) error {
 	return nil
 }
 
+//SetUser get json of user's config
 func SetUser(conn net.Conn) *User {
 	user := new(User)
 	user.conn = conn
@@ -112,6 +115,7 @@ func SetUser(conn net.Conn) *User {
 	return user
 }
 
+//ReadMessage process packet from Client
 func (user *User) ReadMessage() (string, error) {
 	text, err := user.reader.ReadString('\n')
 	text = strings.TrimSuffix(text, "\n")
@@ -126,33 +130,13 @@ func (user *User) ReadMessage() (string, error) {
 	return text, nil
 }
 
+//WriteMessage to Client
 func (user *User) WriteMessage(message string) {
 	user.writer.WriteString(message + "\n")
 	user.writer.Flush()
 }
 
-//doesn't work
-func SaveConfig(path string, conf Config) {
-	fmt.Println("SaveConfig")
-	file, err := os.Open(path)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer file.Close()
-
-	new_room_name := make(map[string][]string)
-	for r_name, obj_room := range Rooms {
-		new_room_name[r_name] = obj_room.Get_users()
-	}
-
-	conf.Room_name = new_room_name
-	encoder := json.NewEncoder(file)
-	err = encoder.Encode(&conf)
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
+//ParseConfig of Server
 func ParseConfig(path string, conf *Config) error {
 	file, err := os.Open(path)
 	if err != nil {
@@ -168,18 +152,19 @@ func ParseConfig(path string, conf *Config) error {
 	return nil
 }
 
+//Process Client's command
 func (user *User) Process(text string) string {
 	fmt.Println("Process method")
 	data := strings.Split(text, " ")
-	command, name_room := data[0], data[1]
-	fmt.Println(command, "=>", name_room)
+	command, NameRoom := data[0], data[1]
+	fmt.Println(command, "=>", NameRoom)
 	var status string
 	switch command {
 	case "publish":
-		status = user.Publish(name_room)
+		status = user.Publish(NameRoom)
 		return status
 	case "subscribe":
-		status = user.Subscribe(name_room)
+		status = user.Subscribe(NameRoom)
 		return status
 	default:
 		user.WriteMessage("unknown command")
@@ -187,25 +172,27 @@ func (user *User) Process(text string) string {
 	}
 }
 
-func (user *User) Get_History(name_room string) string {
-	room := Rooms[name_room]
+//GetHistory get all message from room
+func (user *User) GetHistory(NameRoom string) string {
+	room := Rooms[NameRoom]
 	messages := room.Get_messages()
-	user.writer.WriteString(fmt.Sprintf("----%s----\n", name_room))
+	user.writer.WriteString(fmt.Sprintf("----%s----\n", NameRoom))
 	for _, message := range messages {
 		user.writer.WriteString(message + "\n")
 	}
-	user.writer.WriteString(strings.Repeat("-", (8+len(name_room))) + "\n")
+	user.writer.WriteString(strings.Repeat("-", (8+len(NameRoom))) + "\n")
 	user.writer.Flush()
 	return "History was sent"
 }
 
-func (user *User) Publish(name_room string) string {
-	obj_room, ok := Rooms[name_room]
+//Publish message to room
+func (user *User) Publish(NameRoom string) string {
+	obj_room, ok := Rooms[NameRoom]
 	if ok == false {
 		return "Room doesn't exists"
 	}
 
-	username := user.rooms[name_room]
+	username := user.rooms[NameRoom]
 	ok = obj_room.Is_user_in_room(username)
 	if ok == false {
 		return "User doesn't subscribe to this room"
@@ -223,8 +210,9 @@ func (user *User) Publish(name_room string) string {
 
 }
 
-func (user *User) Subscribe(name_room string) string {
-	obj_room, ok := Rooms[name_room]
+//Subscribe Client to room
+func (user *User) Subscribe(NameRoom string) string {
+	ObjRoom, ok := Rooms[NameRoom]
 	if ok == false {
 		return "Room doesn't exists"
 	}
@@ -236,17 +224,17 @@ func (user *User) Subscribe(name_room string) string {
 		return "Message error"
 	}
 
-	err = obj_room.Add_user(username)
+	err = ObjRoom.Add_user(username)
 	if err != nil {
 		user.WriteMessage("user already exist's")
 		return "subscribe failed"
 	}
 	user.WriteMessage("Subscribe successful")
-	user.rooms[name_room] = username
-	user.Get_History(name_room)
+	user.rooms[NameRoom] = username
+	user.GetHistory(NameRoom)
 
 	user.WriteMessage("JSON")
-	data := map[string]string{"room": name_room, "nickname": username}
+	data := map[string]string{"room": NameRoom, "nickname": username}
 	json.NewEncoder(user.conn).Encode(&data)
 	return "user add successful"
 }

@@ -96,7 +96,6 @@ func WriteHandler(conn net.Conn) {
 			fmt.Println("Wrong len of message\n Type new message")
 			continue
 		}
-		fmt.Print(text)
 		if text == "EXIT\n" {
 			SaveConfig(*PathConfig, &conf)
 			return
@@ -128,7 +127,7 @@ func ReadHandler(conn net.Conn) {
 		}
 		switch text {
 		case "JSON":
-			err = ReadJson(conn)
+			err = ReadJSON(conn)
 			if err != nil {
 				fmt.Println(err)
 			}
