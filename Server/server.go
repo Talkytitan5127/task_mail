@@ -213,7 +213,6 @@ func (user *User) AnswerClient(data *Request, status, err string) {
 	if status != "OK" {
 		return
 	}
-	fmt.Printf("%+v\n", data)
 	NameRoom := data.Room
 	switch data.CMD {
 	case "subscribe":
