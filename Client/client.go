@@ -91,7 +91,6 @@ func SaveConfig(path string, conf *Config) {
 	if err != nil {
 		fmt.Println(err)
 	}
-
 }
 
 //ParseConfigFile with conn's setting
@@ -107,7 +106,9 @@ func ParseConfigFile(path string, conf *Config) error {
 	if err != nil {
 		return err
 	}
-
+	if conf.Rooms == nil {
+		conf.Rooms = make(map[string]string)
+	}
 	return nil
 }
 
@@ -147,6 +148,8 @@ func ReadHandler(conn net.Conn) {
 		switch resp.CMD {
 		case "get_history":
 			PrintHistory(conn)
+		case "get_message":
+			PrintMessage(conn)
 		case "subscribe":
 			room := GetSubConfig(conn)
 			mes := fmt.Sprintf("get_history %s\n", room)
@@ -165,6 +168,22 @@ func GetSubConfig(conn net.Conn) string {
 	reader.Decode(&resp)
 	conf.Rooms[resp["room"]] = resp["nickname"]
 	return resp["room"]
+}
+
+//PrintMessage when another client sent message
+func PrintMessage(conn net.Conn) {
+	var data *History
+	err := reader.Decode(&data)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	output := "!! New Message !!\n"
+	output += fmt.Sprintf("----%s----\n", data.Room)
+	mes := data.Messages[0]
+	output += (mes + "\n")
+	output += strings.Repeat("-", 8+(len(data.Room))) + "\n"
+	fmt.Print(output)
 }
 
 //PrintHistory of Room
