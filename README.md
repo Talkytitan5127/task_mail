@@ -30,40 +30,36 @@ chmod 700 build.sh
 cd Server/
 $GOPATH/bin/Server
 ```
-или дополнительно указав путь к config.json
-```console
-$GOPATH/bin/Server --config="/$GOPATH/src/github.com/task_mail/Server/config.json
-```
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_runserver.png)
 
 Запустить клиент:
 ```console
 cd Client/
 $GOPATH/bin/Client
 ```
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_runclient.png)
 
 Доступные команды пользователю:
-    subscribe room  (подписаться на комнату)
-    publish room  (отправить сообщение в комнату)
-    get_history room  (посмотреть историю сообщений комнаты)
+```console
+subscribe room nickname
+publish room message
+get_history room
+```
 
-Процесс выполнения команды "subscribe" на примере комнаты "kitchen":
-1) пишем команду "subscribe kitchen"
-2) прописываем наше новое имя для комнаты "kitchen", например "butcher"
-3) получаем ответ от сервера
+Выполнение команды "publish":
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_publish.png)
 
-![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/subscribe.png)
+Выполнение команды "subscribe":
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_subscribe.png)
 
-Процесс выполнения команды "publish" на примере комнаты "loby":
-1) пишем команду "publish loby"
-2) вводим наше сообщение
-3) получаем ответ, что сообщение добавлено
+Выполнение команды "get_history":
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_history.png)
 
-![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/publish.png)
-
-Процесс выполнения команды "get_history":
-1) ввести команду "get_history loby"
-
-![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/history.png)
+Запустить тесты (из корневой папки проекта):
+```console
+go test -v
+```
+![Image alt](https://github.com/Talkytitan5127/task_mail/raw/picture/desc/json_test.png)
 
 ## Note:
 В файле конфигурации для сервера в поле "room_name" указываются названия комнат, которые будут созданы после запуска сервера.

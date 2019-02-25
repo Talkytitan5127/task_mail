@@ -1,109 +1,116 @@
-package tests
+package server_test
+
+// before run test, run server
 
 import (
-	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
-	"os"
-	"strings"
 	"testing"
 )
 
+var (
+	host   string = "127.0.0.1"
+	port   string = "2233"
+	ctype  string = "tcp"
+	reader *json.Decoder
+	writer *json.Encoder
+)
+
+type Request struct {
+	CMD, Username, Room, Message string
+}
+
+type Response struct {
+	CMD, Status, Error string
+}
+
+type History struct {
+	Room     string
+	Messages []string
+}
+
 func TestConnection(t *testing.T) {
-	conn, err := net.Dial("tcp", "127.0.0.1:2233")
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	defer conn.Close()
-}
-
-type User struct {
-	conn   net.Conn
-	reader *bufio.Reader
-	writer *bufio.Writer
-	rooms  map[string]string
-}
-
-func SetUser(conn net.Conn) *User {
-	user := new(User)
-	user.conn = conn
-	user.reader = bufio.NewReader(conn)
-	user.writer = bufio.NewWriter(conn)
-
-	emptydict := map[string]string{"loby": "pavel"}
-	json.NewEncoder(conn).Encode(&emptydict)
-	return user
-}
-
-func (user *User) ReadMessage() (string, error) {
-	text, err := user.reader.ReadString('\n')
-	text = strings.TrimSuffix(text, "\n")
-	if err != nil {
-		return "", errors.New("something wrong")
-	}
-	return text, nil
-}
-
-func (user *User) WriteMessage(message string) {
-	user.writer.WriteString(message + "\n")
-	user.writer.Flush()
-}
-
-func TestSending(t *testing.T) {
-	conn, err := net.Dial("tcp", "127.0.0.1:2233")
+	hostname := fmt.Sprintf("%s:%s", host, port)
+	conn, err := net.Dial(ctype, hostname)
 	if err != nil {
 		t.Error(err)
-		os.Exit(1)
 	}
 	defer conn.Close()
-	user := SetUser(conn)
-	user.WriteMessage("hello world")
+}
 
-	response, err := user.ReadMessage()
+func SendConfig(conn net.Conn) {
+	data := map[string]string{"loby": "pavel"}
+	json.NewEncoder(conn).Encode(&data)
+}
+
+func TestGetGreetingHistory(t *testing.T) {
+	hostname := fmt.Sprintf("%s:%s", host, port)
+	conn, err := net.Dial(ctype, hostname)
 	if err != nil {
-		t.Error("something wrong")
+		t.Error(err)
 	}
-	if response != "unknown command" {
-		t.Error("server not get message")
+	defer conn.Close()
+
+	ConnectServer(conn, "no message yet", t)
+}
+
+func ConnectServer(conn net.Conn, mes string, t *testing.T) {
+	SendConfig(conn)
+	var history *History
+	var resp *Response
+	writer := json.NewDecoder(conn)
+	writer.Decode(&resp)
+	if resp.Status != "new_connect" || resp.CMD != "get_history" {
+		t.Error("incorrect response")
+	}
+	writer.Decode(&history)
+	if history.Room != "loby" || history.Messages[0] != mes {
+		t.Error("incorrect history packet")
+	}
+
+}
+
+func TestPublish(t *testing.T) {
+	hostname := fmt.Sprintf("%s:%s", host, port)
+	conn, err := net.Dial(ctype, hostname)
+	if err != nil {
+		t.Error(err)
+	}
+	defer conn.Close()
+	ConnectServer(conn, "no message yet", t)
+
+	req := Request{CMD: "publish", Room: "loby", Message: "hello world"}
+	json.NewEncoder(conn).Encode(&req)
+
+	var resp *Response
+	json.NewDecoder(conn).Decode(&resp)
+	if resp.Status != "OK" || resp.CMD != "publish" {
+		t.Error("status != OK")
 	}
 }
 
 func TestSubscribe(t *testing.T) {
-	conn, err := net.Dial("tcp", "127.0.0.1:2233")
+	hostname := fmt.Sprintf("%s:%s", host, port)
+	conn, err := net.Dial(ctype, hostname)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		t.Error(err)
 	}
 	defer conn.Close()
-	user := SetUser(conn)
-	user.WriteMessage("subscribe kitchen")
-	response, _ := user.ReadMessage()
-	if response != "Enter you nickname" {
-		t.Error("room \"kitchen\" not exist")
-	}
-	user.WriteMessage("peter")
+	ConnectServer(conn, "pavel: hello world", t)
 
-	response, _ = user.ReadMessage()
-	if response != "Subscribe successful" {
-		t.Error("nickname already occupied")
+	req := Request{CMD: "subscribe", Room: "kitchen", Username: "butcher"}
+	json.NewEncoder(conn).Encode(&req)
+
+	var resp *Response
+	json.NewDecoder(conn).Decode(&resp)
+	if resp.Status != "OK" || resp.CMD != "subscribe" {
+		t.Error("status != OK")
 	}
 
-	response, _ = user.ReadMessage() // begin of history
-	response, _ = user.ReadMessage() //end of history
-	response, _ = user.ReadMessage() //word json
-	if response != "JSON" {
-		t.Error("server don't send word JSON")
+	var data map[string]string
+	json.NewDecoder(conn).Decode(&data)
+	if data["nickname"] != "butcher" || data["room"] != "kitchen" {
+		t.Error("error subscribe")
 	}
-
-	data := make(map[string]string)
-	json.NewDecoder(user.conn).Decode(&data)
-
-	fmt.Printf("%+v\n", data)
-	if data["room"] != "kitchen" && data["nickname"] != "peter" {
-		t.Error("subscribe didn't work\n")
-	}
-
 }

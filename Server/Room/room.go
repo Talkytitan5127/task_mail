@@ -2,34 +2,51 @@ package room
 
 import (
 	"errors"
+	"sync"
 )
 
+//Room struct
 type Room struct {
-	Users map[string]bool
+	Users    map[string]bool
 	Messages []string
+	mux      sync.Mutex
 }
 
-func Create_room(users []string) *Room {
+//CreateRoom function
+func CreateRoom(users []string) *Room {
 	cap := 128
 	room := new(Room)
 	room.Users = make(map[string]bool)
-	for _, name := range(users) {
+	for _, name := range users {
 		room.Users[name] = true
 	}
 	room.Messages = make([]string, 0, cap)
 	return room
 }
 
-func (r *Room) Is_user_in_room(name string) bool {
+//IsUserInRoom check user exist in room
+func (r *Room) IsUserInRoom(name string) bool {
+	r.mux.Lock()
 	_, check := r.Users[name]
+	r.mux.Unlock()
 	return check
 }
 
-func (r *Room) Get_messages() []string {
+//GetMessages from room
+func (r *Room) GetMessages() []string {
+	if len(r.Messages) == 0 {
+		return []string{"no message yet"}
+	}
 	return r.Messages
 }
 
-func (r *Room) Add_message(mes string) {
+//GetLastMessage from room
+func (r *Room) GetLastMessage() string {
+	return r.Messages[len(r.Messages)-1]
+}
+
+//AddMessage to room
+func (r *Room) AddMessage(mes string) {
 	if len := len(r.Messages); len >= cap(r.Messages) {
 		r.Messages = r.Messages[1:]
 		r.Messages = append(r.Messages, mes)
@@ -39,7 +56,10 @@ func (r *Room) Add_message(mes string) {
 	return
 }
 
-func (r *Room) Add_user(name string) error {
+//AddUser to room
+func (r *Room) AddUser(name string) error {
+	r.mux.Lock()
+	defer r.mux.Unlock()
 	_, ok := r.Users[name]
 	if ok {
 		return errors.New("user already exist's")
@@ -49,10 +69,13 @@ func (r *Room) Add_user(name string) error {
 	}
 }
 
-func (r *Room) Get_users() []string {
+//GetUsers from Room
+func (r *Room) GetUsers() []string {
+	r.mux.Lock()
 	var users []string
-	for name, _ := range r.Users {
+	for name := range r.Users {
 		users = append(users, name)
 	}
+	r.mux.Unlock()
 	return users
 }

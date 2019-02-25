@@ -1,10 +1,1 @@
-{
-    "host": "127.0.0.1",
-    "port": "2233",
-    "ConnType": "tcp",
-    "RoomName": {
-        "loby" : ["michael", "pavel"], 
-        "kitchen" : [], 
-        "room#1" : []
-    }
-}
+{"Host":"127.0.0.1","Port":"2233","ConnType":"tcp","Room_name":{"kitchen":["misha"],"loby":["pavel"],"room#1":[]}}

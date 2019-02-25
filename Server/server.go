@@ -1,51 +1,68 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"net"
 	"os"
-	"strings"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	room "github.com/task_mail/Server/Room"
 )
 
-//Config of server
+//Config Server
 type Config struct {
 	Host, Port, ConnType string
-	RoomName             map[string][]string
+	Room_name            map[string][]string
 }
 
-//User data
+//User parametres
 type User struct {
 	conn   net.Conn
-	reader *bufio.Reader
-	writer *bufio.Writer
+	reader *json.Decoder
+	writer *json.Encoder
 	rooms  map[string]string
 }
 
+//Request packet
+type Request struct {
+	CMD, Username, Room, Message string
+}
+
+//Response packet
+type Response struct {
+	CMD, Status, Error string
+}
+
+//History packet
+type History struct {
+	Room     string
+	Messages []string
+}
+
 var (
-	Rooms map[string]*room.Room
+	conf        Config
+	pathConfig  *string
+	Rooms       map[string]*room.Room
+	UserConnect []*User
 )
 
 func main() {
-	var PathConfig = flag.String("config", "./config.json", "path to config file")
+	pathConfig = flag.String("config", "./config.json", "path to config file")
 	flag.Parse()
 
-	var conf Config
-	err := ParseConfig(*PathConfig, &conf)
+	err := ParseConfig(*pathConfig, &conf)
 	if err != nil {
 		fmt.Println("Error config: ", err.Error())
 		os.Exit(1)
 	}
 
 	Rooms = make(map[string]*room.Room)
-	for name, users := range conf.RoomName {
-		room := room.Create_room(users)
+	for name, users := range conf.Room_name {
+		room := room.CreateRoom(users)
 		Rooms[name] = room
 	}
 
@@ -56,87 +73,64 @@ func main() {
 		os.Exit(1)
 	}
 	defer listen.Close()
+	SetupCloseHandler(listen)
+	UserConnect = make([]*User, 0)
 
 	fmt.Printf("Listening on %s\n", host)
 	for {
 		conn, err := listen.Accept()
 		if err != nil {
 			fmt.Println("Error accepting: ", err.Error())
-			continue
+			return
 		}
 		defer conn.Close()
 
 		fmt.Println("User connect from:", conn.RemoteAddr())
 
 		user := SetUser(conn)
+		UserConnect = append(UserConnect, user)
+
+		user.SendHistoryWhenConnect()
 		go handleRequest(user)
 	}
 
 }
 
-func handleRequest(user *User) {
-	for {
-		text, err := user.ReadMessage()
-		if err != nil {
-			return
-		}
-
-		fmt.Println(text)
-		text = strings.TrimSuffix(text, "\n")
-		err = CheckInput(text)
-		if err != nil {
-			fmt.Println(err)
-			user.WriteMessage("wrong input command")
-			continue
-		}
-		status := user.Process(text)
-		fmt.Println(status)
-	}
+//SetupCloseHandler to save Room config
+func SetupCloseHandler(listen net.Listener) {
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println("\r- Ctrl+C pressed in Terminal")
+		defer listen.Close()
+		SaveConfig(*pathConfig, &conf)
+		os.Exit(0)
+	}()
 }
 
-//CheckInput control input text
-func CheckInput(text string) error {
-	data := strings.Split(text, " ")
-	if text == "" || text == "\n" || len(data) < 2 {
-		return errors.New("wrong input command")
-	}
-	return nil
-}
-
-//SetUser get json of user's config
-func SetUser(conn net.Conn) *User {
-	user := new(User)
-	user.conn = conn
-	user.reader = bufio.NewReader(conn)
-	user.writer = bufio.NewWriter(conn)
-
-	reader := json.NewDecoder(conn)
-	reader.Decode(&user.rooms)
-	return user
-}
-
-//ReadMessage process packet from Client
-func (user *User) ReadMessage() (string, error) {
-	text, err := user.reader.ReadString('\n')
-	text = strings.TrimSuffix(text, "\n")
+//SaveConfig save current client's rooms to json file
+func SaveConfig(path string, conf *Config) {
+	fmt.Println("SaveConfig")
+	file, err := os.Create(path)
 	if err != nil {
-		if err == io.EOF {
-			fmt.Printf("User %s disonnected\n", user.conn.RemoteAddr())
-		} else {
-			fmt.Println("Error readnig: ", err.Error())
-		}
-		return "", errors.New("smth wrong")
+		fmt.Println(err)
 	}
-	return text, nil
+	defer file.Close()
+	NewRoom := make(map[string][]string)
+	for nameRoom, obj := range Rooms {
+		NewRoom[nameRoom] = obj.GetUsers()
+	}
+	conf.Room_name = NewRoom
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(&conf)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 }
 
-//WriteMessage to Client
-func (user *User) WriteMessage(message string) {
-	user.writer.WriteString(message + "\n")
-	user.writer.Flush()
-}
-
-//ParseConfig of Server
+//ParseConfig of Server connection
 func ParseConfig(path string, conf *Config) error {
 	file, err := os.Open(path)
 	if err != nil {
@@ -152,93 +146,178 @@ func ParseConfig(path string, conf *Config) error {
 	return nil
 }
 
-//Process Client's command
-func (user *User) Process(text string) string {
+func handleRequest(user *User) {
+	for {
+		data, err := user.ReadPacket()
+		if err != nil {
+			fmt.Println("User disconnected")
+			return
+		}
+		status, desc := user.Process(data)
+		fmt.Println(status, desc)
+		user.AnswerClient(data, status, desc)
+	}
+}
+
+//SetUser set parametres for connected user
+func SetUser(conn net.Conn) *User {
+	user := new(User)
+	user.conn = conn
+	user.reader = json.NewDecoder(conn)
+	user.writer = json.NewEncoder(conn)
+
+	user.reader.Decode(&user.rooms)
+	if user.rooms == nil {
+		user.rooms = make(map[string]string)
+	}
+	return user
+}
+
+//ReadPacket from Client
+func (user *User) ReadPacket() (*Request, error) {
+	var data Request
+	err := user.reader.Decode(&data)
+	return &data, err
+}
+
+//WritePacket to Client
+func (user *User) WritePacket(data *Response) {
+	user.writer.Encode(&data)
+}
+
+//Process command from Client
+func (user *User) Process(data *Request) (string, string) {
 	fmt.Println("Process method")
-	data := strings.Split(text, " ")
-	command, NameRoom := data[0], data[1]
-	fmt.Println(command, "=>", NameRoom)
-	var status string
+	fmt.Println("server get packet")
+	fmt.Printf("%+v\n", data)
+	command := data.CMD
+	var status, err string
 	switch command {
 	case "publish":
-		status = user.Publish(NameRoom)
-		return status
+		status, err = user.Publish(data)
 	case "subscribe":
-		status = user.Subscribe(NameRoom)
-		return status
+		status, err = user.Subscribe(data)
 	case "get_history":
-		status = user.GetHistory(NameRoom)
-		return status
+		status, err = user.CheckHistory(data)
 	default:
-		user.WriteMessage("unknown command")
-		return "unknown command"
+		status, err = "ERROR", "unknown command"
+	}
+	return status, err
+}
+
+//AnswerClient after Process
+func (user *User) AnswerClient(data *Request, status, err string) {
+	fmt.Println("Answer")
+	answer := Response{Status: status, Error: err, CMD: data.CMD}
+	user.WritePacket(&answer)
+	if status != "OK" {
+		return
+	}
+	NameRoom := data.Room
+	switch data.CMD {
+	case "subscribe":
+		UserConf := map[string]string{"room": NameRoom, "nickname": user.rooms[NameRoom]}
+		user.writer.Encode(&UserConf)
+	case "get_history":
+		user.SendHistory(data)
+	case "publish":
+		user.SendMessageToSub(data)
 	}
 }
 
-//GetHistory get all message from room
-func (user *User) GetHistory(NameRoom string) string {
-	room := Rooms[NameRoom]
-	messages := room.Get_messages()
-	user.writer.WriteString(fmt.Sprintf("----%s----\n", NameRoom))
-	for _, message := range messages {
-		user.writer.WriteString(message + "\n")
-	}
-	user.writer.WriteString(strings.Repeat("-", (8+len(NameRoom))) + "\n")
-	user.writer.Flush()
-	return "History was sent"
-}
-
-//Publish message to room
-func (user *User) Publish(NameRoom string) string {
-	obj_room, ok := Rooms[NameRoom]
-	if ok == false {
-		return "Room doesn't exists"
-	}
-
-	username := user.rooms[NameRoom]
-	ok = obj_room.Is_user_in_room(username)
-	if ok == false {
-		return "User doesn't subscribe to this room"
-	}
-
-	user.WriteMessage("Type message to send")
-	fmt.Println("Wait message from user")
-	text, err := user.ReadMessage()
-	if err != nil {
-		return "Message error"
-	}
-	text = fmt.Sprintf("%s: %s", username, text)
-	obj_room.Add_message(text)
-	user.WriteMessage("Send message is successful")
-	return "Send message is successful"
-
-}
-
-//Subscribe Client to room
-func (user *User) Subscribe(NameRoom string) string {
+//Publish message to Room
+func (user *User) Publish(data *Request) (string, string) {
+	NameRoom, message := data.Room, data.Message
+	var mux sync.Mutex
+	mux.Lock()
 	ObjRoom, ok := Rooms[NameRoom]
+	mux.Unlock()
 	if ok == false {
-		return "Room doesn't exists"
+		return "ERROR", "Room doesn't exists"
+	}
+	username := user.rooms[NameRoom]
+	ok = ObjRoom.IsUserInRoom(username)
+	if ok == false {
+		return "ERROR", "User doesn't subscribe to this room"
 	}
 
-	user.WriteMessage("Enter you nickname")
-	fmt.Println("Wait nickname from user")
-	username, err := user.ReadMessage()
-	if err != nil {
-		return "Message error"
+	message = fmt.Sprintf("%s: %s", username, message)
+	ObjRoom.AddMessage(message)
+	return "OK", "Send message is successful"
+
+}
+
+//SendMessageToSub send mes to all subscribers of room
+func (user *User) SendMessageToSub(data *Request) {
+	NameRoom := data.Room
+	message := Rooms[NameRoom].GetLastMessage()
+	packet := History{Room: NameRoom, Messages: []string{message}}
+	for _, ConnUser := range UserConnect {
+		_, ok := ConnUser.rooms[NameRoom]
+		if ok != true || ConnUser == user {
+			continue
+		}
+		answer := Response{Status: "OK", Error: "OK", CMD: "get_message"}
+		ConnUser.WritePacket(&answer)
+		ConnUser.writer.Encode(&packet)
 	}
 
-	err = ObjRoom.Add_user(username)
-	if err != nil {
-		user.WriteMessage("user already exist's")
-		return "subscribe failed"
+}
+
+//Subscribe to Room
+func (user *User) Subscribe(data *Request) (string, string) {
+	NameRoom, username := data.Room, data.Username
+	var mux sync.Mutex
+	mux.Lock()
+	ObjRoom, ok := Rooms[NameRoom]
+	mux.Unlock()
+	if ok == false {
+		return "ERROR", "Room doesn't exists"
 	}
-	user.WriteMessage("Subscribe successful")
+
+	err := ObjRoom.AddUser(username)
+	if err != nil {
+		return "ERROR", "user already exist's"
+	}
 	user.rooms[NameRoom] = username
-	user.GetHistory(NameRoom)
+	return "OK", "user add successful"
+}
 
-	user.WriteMessage("JSON")
-	data := map[string]string{"room": NameRoom, "nickname": username}
-	json.NewEncoder(user.conn).Encode(&data)
-	return "user add successful"
+//CheckHistory and Room
+func (user *User) CheckHistory(data *Request) (string, string) {
+	NameRoom := data.Room
+	var mux sync.Mutex
+	mux.Lock()
+	_, ok := Rooms[NameRoom]
+	mux.Unlock()
+	if ok == false {
+		return "ERROR", "Room doesn't exists"
+	}
+	return "OK", "history was sent"
+
+}
+
+//SendHistory to Client
+func (user *User) SendHistory(data *Request) (string, string) {
+	NameRoom := data.Room
+	ObjRoom, _ := Rooms[NameRoom]
+	room := ObjRoom
+	messages := room.GetMessages()
+	packet := History{Room: NameRoom, Messages: messages}
+	err := user.writer.Encode(&packet)
+	if err != nil {
+		fmt.Println(err)
+		return "ERROR", "couldn't send json"
+	}
+	return "OK", "history was sent"
+}
+
+//SendHistoryWhenConnect to Client
+func (user *User) SendHistoryWhenConnect() {
+	for name := range user.rooms {
+		req := Request{Room: name}
+		answer := Response{Status: "new_connect", Error: "", CMD: "get_history"}
+		user.WritePacket(&answer)
+		fmt.Println(user.SendHistory(&req))
+	}
 }
