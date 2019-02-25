@@ -8,7 +8,9 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 )
 
 //Config connection
@@ -55,7 +57,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	defer conn.Close()
+	SetupCloseHandler(conn)
 
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
 	writer = json.NewEncoder(conn)
@@ -75,6 +77,19 @@ func (conf Config) SendPacket(conn net.Conn) {
 //SendPacket request to Server
 func (r *Request) SendPacket(conn net.Conn) {
 	writer.Encode(r)
+}
+
+//SetupCloseHandler to save Room config
+func SetupCloseHandler(conn net.Conn) {
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println("\r- Ctrl+C pressed in Terminal")
+		defer conn.Close()
+		SaveConfig(*pathConfig, &conf)
+		os.Exit(0)
+	}()
 }
 
 //SaveConfig save current client's rooms to json file
