@@ -221,7 +221,7 @@ func (user *User) AnswerClient(data *Request, status, err string) {
 	case "get_history":
 		user.SendHistory(data)
 	case "publish":
-		SendMessageToSub(data)
+		user.SendMessageToSub(data)
 	}
 }
 
@@ -248,18 +248,18 @@ func (user *User) Publish(data *Request) (string, string) {
 }
 
 //SendMessageToSub send mes to all subscribers of room
-func SendMessageToSub(data *Request) {
+func (user *User) SendMessageToSub(data *Request) {
 	NameRoom := data.Room
 	message := Rooms[NameRoom].GetLastMessage()
 	packet := History{Room: NameRoom, Messages: []string{message}}
-	for _, user := range UserConnect {
-		_, ok := user.rooms[NameRoom]
-		if ok != true {
+	for _, ConnUser := range UserConnect {
+		_, ok := ConnUser.rooms[NameRoom]
+		if ok != true || ConnUser == user {
 			continue
 		}
 		answer := Response{Status: "OK", Error: "OK", CMD: "get_message"}
-		user.WritePacket(&answer)
-		user.writer.Encode(&packet)
+		ConnUser.WritePacket(&answer)
+		ConnUser.writer.Encode(&packet)
 	}
 
 }
